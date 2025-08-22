@@ -47,12 +47,44 @@ export default function FXAnalyzer() {
   const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
   const [startBalance, setStartBalance] = useState(165541);
 
-  // AI message state
-  const [aiMessage, setAiMessage] = useState("トレードを保存すると、ここにAIからのアドバイスが表示されます。");
-  const [isAiMessageLoading, setIsAiMessageLoading] = useState(false);
-  const [aiMessageError, setAiMessageError] = useState<string | null>(null);
-
   const summary = useMemo(() => summarize(savedClosed), [savedClosed]);
+
+  const projectedPl = useMemo(() => {
+    const now = new Date();
+    const todaysTrades = savedClosed.filter(t => t.exitAt && isSameLocalDate(now, t.exitAt));
+
+    if (todaysTrades.length < 2) {
+      return null;
+    }
+
+    todaysTrades.sort((a, b) => (a.exitAt?.getTime() ?? 0) - (b.exitAt?.getTime() ?? 0));
+
+    const firstTradeTime = todaysTrades[0].exitAt!.getTime();
+    const lastTradeTime = todaysTrades[todaysTrades.length - 1].exitAt!.getTime();
+
+    const durationMs = lastTradeTime - firstTradeTime;
+    if (durationMs <= 0) {
+      return null;
+    }
+    const durationHours = durationMs / (1000 * 60 * 60);
+
+    const todayPl = todaysTrades.reduce((sum, trade) => {
+      const pl = (trade.pips ?? 0) * trade.size * 100;
+      return sum + pl;
+    }, 0);
+
+    const profitRatePerHour = todayPl / durationHours;
+
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+    const remainingMs = endOfDay.getTime() - lastTradeTime;
+    const remainingHours = Math.max(0, remainingMs / (1000 * 60 * 60));
+
+    const projectedAdditionalPl = profitRatePerHour * remainingHours;
+    const totalProjectedPl = todayPl + projectedAdditionalPl;
+
+    return totalProjectedPl;
+  }, [savedClosed]);
 
   function handleSave() {
     const parsed = parseFX(raw);
@@ -171,48 +203,6 @@ export default function FXAnalyzer() {
   useEffect(() => {
     refreshSnapshots();
   }, []);
-
-  // Fetch AI message when summary changes
-  useEffect(() => {
-    if (summary.count === 0) {
-      setAiMessage("トレードを保存すると、ここにAIからのアドバイスが表示されます。");
-      return;
-    }
-
-    const fetchAiMessage = async () => {
-      setIsAiMessageLoading(true);
-      setAiMessageError(null);
-      try {
-        const recentTrades = savedClosed.slice(-3);
-        const response = await fetch("/api/generate-ai-message", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ summary, recentTrades }),
-        });
-
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.error || "AIからのメッセージ取得に失敗しました。");
-        }
-
-        const data = await response.json();
-        setAiMessage(data.message);
-      } catch (error: any) {
-        setAiMessageError(error.message);
-      } finally {
-        setIsAiMessageLoading(false);
-      }
-    };
-
-    // Debounce the fetch
-    const timer = setTimeout(() => {
-      fetchAiMessage();
-    }, 500); // 500ms delay
-
-    return () => clearTimeout(timer);
-  }, [summary]);
 
   function handleDelete() {
     const newSavedClosed = savedClosed.filter(trade => !selectedTrades.has(tradeKey(trade)));
@@ -339,16 +329,21 @@ export default function FXAnalyzer() {
           )}
 
           <div className="mt-4 border-t border-neutral-800 pt-4">
-            <h3 className="text-sm font-semibold tracking-tight mb-2 flex items-center gap-2"><Wand2 className="w-4 h-4 text-neutral-400"/> AIからのメッセージ</h3>
-            <div className="text-sm text-neutral-300">
-              {isAiMessageLoading ? (
-                <p>AIが分析中です...</p>
-              ) : aiMessageError ? (
-                <p className="text-rose-400">{aiMessageError}</p>
+            <h3 className="text-sm font-semibold tracking-tight mb-2 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-neutral-400"/> 本日の着地予想
+            </h3>
+            <div className="text-2xl font-bold tabular-nums">
+              {projectedPl !== null ? (
+                <span className={projectedPl >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+                  {fmtSignedInt(projectedPl)}
+                </span>
               ) : (
-                <p>{aiMessage}</p>
+                <span className="text-sm text-neutral-500">本日2トレード以上で表示</span>
               )}
             </div>
+            <p className="text-xs text-neutral-500 mt-1">
+              現在のペースでトレードを続けた場合の損益予測です。
+            </p>
           </div>
         </Card>
 
