@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 // Define the structure of the summary data we expect
 type TradeSummary = {
   count: number;
@@ -20,12 +15,14 @@ type TradeSummary = {
 };
 
 export async function POST(req: NextRequest) {
-  if (!process.env.OPENAI_API_KEY) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
     return NextResponse.json(
       { error: "OpenAI API key is not configured on the server." },
       { status: 500 }
     );
   }
+  const openai = new OpenAI({ apiKey });
 
   let summary: TradeSummary;
   try {
