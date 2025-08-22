@@ -34,6 +34,11 @@ export default function FXAnalyzer() {
   const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
   const [startBalance, setStartBalance] = useState(165541);
 
+  // AI message state
+  const [aiMessage, setAiMessage] = useState("トレードを保存すると、ここにAIからのアドバイスが表示されます。");
+  const [isAiMessageLoading, setIsAiMessageLoading] = useState(false);
+  const [aiMessageError, setAiMessageError] = useState<string | null>(null);
+
   const summary = useMemo(() => summarize(savedClosed), [savedClosed]);
 
   function handleSave() {
@@ -152,6 +157,47 @@ export default function FXAnalyzer() {
   useEffect(() => {
     refreshSnapshots();
   }, []);
+
+  // Fetch AI message when summary changes
+  useEffect(() => {
+    if (summary.count === 0) {
+      setAiMessage("トレードを保存すると、ここにAIからのアドバイスが表示されます。");
+      return;
+    }
+
+    const fetchAiMessage = async () => {
+      setIsAiMessageLoading(true);
+      setAiMessageError(null);
+      try {
+        const response = await fetch("/api/generate-ai-message", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(summary),
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || "AIからのメッセージ取得に失敗しました。");
+        }
+
+        const data = await response.json();
+        setAiMessage(data.message);
+      } catch (error: any) {
+        setAiMessageError(error.message);
+      } finally {
+        setIsAiMessageLoading(false);
+      }
+    };
+
+    // Debounce the fetch
+    const timer = setTimeout(() => {
+      fetchAiMessage();
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timer);
+  }, [summary]);
 
   function handleDelete() {
     const newSavedClosed = savedClosed.filter(trade => !selectedTrades.has(tradeKey(trade)));
@@ -278,9 +324,15 @@ export default function FXAnalyzer() {
 
           <div className="mt-4 border-t border-neutral-800 pt-4">
             <h3 className="text-sm font-semibold tracking-tight mb-2 flex items-center gap-2"><Wand2 className="w-4 h-4 text-neutral-400"/> AIからのメッセージ</h3>
-            <p className="text-sm text-neutral-300">
-              {generateAiMessage(summary)}
-            </p>
+            <div className="text-sm text-neutral-300">
+              {isAiMessageLoading ? (
+                <p>AIが分析中です...</p>
+              ) : aiMessageError ? (
+                <p className="text-rose-400">{aiMessageError}</p>
+              ) : (
+                <p>{aiMessage}</p>
+              )}
+            </div>
           </div>
         </Card>
 
@@ -536,41 +588,6 @@ function getWinRateColor(winRate?: number): string {
   if (winRate >= 30) return "text-orange-400";
   if (winRate >= 20) return "text-rose-400";
   return "text-rose-600";
-}
-
-function generateAiMessage(summary: ReturnType<typeof summarize>): string {
-  if (summary.count === 0) {
-    return "トレードデータがありません。ログを貼り付けて「保存」を押してください。";
-  }
-
-  const messages = [];
-
-  // Win rate message
-  if (summary.winRate >= 50) {
-    messages.push(`勝率が${summary.winRate.toFixed(1)}%と良好です。この調子でいきましょう。`);
-  } else if (summary.winRate >= 40) {
-    messages.push(`勝率は${summary.winRate.toFixed(1)}%です。もう少しで50%に到達します。`);
-  } else {
-    messages.push(`勝率が${summary.winRate.toFixed(1)}%と低めです。エントリーポイントの見直しを検討しましょう。`);
-  }
-
-  // P/L message
-  if (summary.totalQtyPL > 0) {
-    messages.push(`合計損益はプラスです。素晴らしい結果です。`);
-  } else {
-    messages.push(`合計損益がマイナスです。リスク管理を徹底しましょう。`);
-  }
-  
-  // Payoff ratio message
-  if (isFinite(summary.payoff)) {
-      if (summary.payoff >= 1) {
-          messages.push(`ペイオフレシオは${summary.payoff.toFixed(2)}と良好で、利益が損失を上回っています。`);
-      } else {
-          messages.push(`ペイオフレシオが${summary.payoff.toFixed(2)}と1を下回っています。損小利大を意識しましょう。`);
-      }
-  }
-
-  return messages.join(" ");
 }
 
 function Stat({ label, value, intent, valueClassName }: { label: string; value: string; intent?: "up" | "down"; valueClassName?: string }) {
