@@ -16,7 +16,20 @@ export default function FXAnalyzer() {
   const [raw, setRaw] = useState(ExampleText.trim());
 
   // 保存後に反映される状態（自動更新しない）
-  const [savedClosed, setSavedClosed] = useState<ClosedTrade[]>([]);
+  const [savedClosed, setSavedClosed] = useState<ClosedTrade[]>(() => {
+    if (typeof window === 'undefined') {
+      return [];
+    }
+    try {
+      const saved = window.localStorage.getItem("fx_analyzer_main_trades_v2");
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed.map(reviveClosedTradeDates) : [];
+    } catch (e) {
+      console.error("Failed to load trades from localStorage", e);
+      return [];
+    }
+  });
   const [savedErrors, setSavedErrors] = useState<string[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [selectedTrades, setSelectedTrades] = useState(new Set<string>());
@@ -198,6 +211,18 @@ export default function FXAnalyzer() {
 
     return () => clearTimeout(timer);
   }, [summary]);
+
+  // Save trades to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem("fx_analyzer_main_trades_v2", JSON.stringify(savedClosed));
+    } catch (e) {
+      console.error("Failed to save trades to localStorage", e);
+    }
+  }, [savedClosed]);
 
   function handleDelete() {
     const newSavedClosed = savedClosed.filter(trade => !selectedTrades.has(tradeKey(trade)));
