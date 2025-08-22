@@ -799,7 +799,7 @@ function parseFX(input: string) {
         entryAt: matched?.entryAt,
         exitAt: e.at,
         ticketOpen: matched?.ticketOpen,
-        ticketClose: matched?.ticketClose,
+        ticketClose: e.ticket,
       };
 
       // pips 推定（USDJPYは 0.01 = 1pip として100倍）
