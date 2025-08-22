@@ -58,6 +58,7 @@ export default function FXAnalyzer() {
     const parsed = parseFX(raw);
     const { merged, added } = mergeUniqueWithCount(savedClosed, parsed.closedTrades);
     setSavedClosed(merged);
+    saveTradesToLocalStorage(merged); // 明示的に保存
     setSavedErrors((prev) => [...prev, ...parsed.errors]);
 
     const msg = added
@@ -212,21 +213,10 @@ export default function FXAnalyzer() {
     return () => clearTimeout(timer);
   }, [summary]);
 
-  // Save trades to localStorage whenever they change
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    try {
-      window.localStorage.setItem("fx_analyzer_main_trades_v2", JSON.stringify(savedClosed));
-    } catch (e) {
-      console.error("Failed to save trades to localStorage", e);
-    }
-  }, [savedClosed]);
-
   function handleDelete() {
     const newSavedClosed = savedClosed.filter(trade => !selectedTrades.has(tradeKey(trade)));
     setSavedClosed(newSavedClosed);
+    saveTradesToLocalStorage(newSavedClosed); // 明示的に保存
     setSelectedTrades(new Set());
     setFlash(`削除：トレード ${selectedTrades.size} 件`);
   }
@@ -975,6 +965,19 @@ function reviveClosedTradeDates(t: any): ClosedTrade {
   if (r.entryAt && typeof r.entryAt === 'string') r.entryAt = new Date(r.entryAt);
   if (r.exitAt && typeof r.exitAt === 'string') r.exitAt = new Date(r.exitAt);
   return r as ClosedTrade;
+}
+
+// 決済済みトレード（メインの状態）を localStorage に保存する
+function saveTradesToLocalStorage(trades: ClosedTrade[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem("fx_analyzer_main_trades_v2", JSON.stringify(trades));
+  } catch (e) {
+    console.error("Failed to save trades to localStorage", e);
+    // ここでユーザーにフィードバックする Toast を表示しても良い
+  }
 }
 
 function summarize(rows: ClosedTrade[]) {
