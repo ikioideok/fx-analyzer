@@ -48,6 +48,53 @@ export default function FXAnalyzer() {
   const [startBalance, setStartBalance] = useState(165541);
   const [targetBalance, setTargetBalance] = useState(1000000);
 
+  // リスク管理
+  const [consecutiveLossLimit, setConsecutiveLossLimit] = useState(3);
+  const [cooldownMinutes, setCooldownMinutes] = useState(30);
+  const [isCooldownActive, setIsCooldownActive] = useState(false);
+  const [cooldownEndTime, setCooldownEndTime] = useState<number | null>(null);
+  const [remainingCooldownTime, setRemainingCooldownTime] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedEndTime = window.localStorage.getItem('cooldownEndTime');
+      if (savedEndTime) {
+        const endTime = parseInt(savedEndTime, 10);
+        if (endTime > Date.now()) {
+          setIsCooldownActive(true);
+          setCooldownEndTime(endTime);
+        } else {
+          window.localStorage.removeItem('cooldownEndTime');
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isCooldownActive && cooldownEndTime) {
+      const updateRemainingTime = () => {
+        const remainingMs = Math.max(0, cooldownEndTime - Date.now());
+        if (remainingMs === 0) {
+          setIsCooldownActive(false);
+          setCooldownEndTime(null);
+          if (typeof window !== 'undefined') {
+            window.localStorage.removeItem('cooldownEndTime');
+          }
+          setFlash("クールダウンが終了しました。");
+          setRemainingCooldownTime("");
+        } else {
+          const totalSeconds = Math.floor(remainingMs / 1000);
+          const minutes = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
+          setRemainingCooldownTime(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+        }
+      };
+      updateRemainingTime();
+      const intervalId = setInterval(updateRemainingTime, 1000);
+      return () => clearInterval(intervalId);
+    }
+  }, [isCooldownActive, cooldownEndTime]);
+
   const summary = useMemo(() => summarize(savedClosed), [savedClosed]);
 
   const projectedPl = useMemo(() => {
@@ -281,6 +328,40 @@ export default function FXAnalyzer() {
     refreshSnapshots();
   }, []);
 
+  // Cooldown logic for consecutive losses
+  useEffect(() => {
+    if (consecutiveLossLimit <= 0 || isCooldownActive) {
+      return;
+    }
+
+    const sortedTrades = [...savedClosed].sort((a, b) => (b.exitAt?.getTime() ?? 0) - (a.exitAt?.getTime() ?? 0));
+
+    if (sortedTrades.length < consecutiveLossLimit) {
+      return;
+    }
+
+    let consecutiveLosses = 0;
+    for (let i = 0; i < sortedTrades.length; i++) {
+      const trade = sortedTrades[i];
+      if ((trade.pips ?? 0) < 0) {
+        consecutiveLosses++;
+      } else {
+        break;
+      }
+
+      if (consecutiveLosses >= consecutiveLossLimit) {
+        const endTime = Date.now() + cooldownMinutes * 60 * 1000;
+        setCooldownEndTime(endTime);
+        setIsCooldownActive(true);
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('cooldownEndTime', endTime.toString());
+        }
+        setFlash(`🚨 ${consecutiveLossLimit}連敗しました。${cooldownMinutes}分間のクールダウンを開始します。`);
+        break;
+      }
+    }
+  }, [savedClosed, consecutiveLossLimit, cooldownMinutes, isCooldownActive]);
+
   function handleEditTags() {
     if (selectedTrades.size === 0) {
       setFlash("タグを編集するトレードを選択してください");
@@ -394,8 +475,9 @@ export default function FXAnalyzer() {
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSave}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium"
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium disabled:bg-neutral-600 disabled:cursor-not-allowed"
                 title="解析して下の表に反映"
+                disabled={isCooldownActive}
               >
                 <Save className="w-4 h-4 inline -mt-0.5 mr-1"/>保存
               </motion.button>
@@ -484,6 +566,15 @@ export default function FXAnalyzer() {
               </div>
             </div>
           </div>
+          {isCooldownActive && (
+            <div className="mt-4 pt-4 border-t border-rose-500/30">
+              <div className="text-center">
+                <p className="font-semibold text-rose-400">🚨 クールダウン中 🚨</p>
+                <p className="text-2xl font-bold my-2 tabular-nums">{remainingCooldownTime}</p>
+                <p className="text-xs text-neutral-400">感情的なトレードを避けるため、休憩しましょう。</p>
+              </div>
+            </div>
+          )}
         </Card>
 
         <Card>
@@ -550,6 +641,36 @@ export default function FXAnalyzer() {
                   return null;
               }
             })()}
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="text-base font-semibold tracking-tight mb-3">リスク管理ルール</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-neutral-400">連続敗北リミット（回）</label>
+              <p className="text-xs text-neutral-500 mb-1">この回数だけ連敗するとクールダウンが発動します。0で無効。</p>
+              <input
+                type="number"
+                value={consecutiveLossLimit}
+                onChange={(e) => setConsecutiveLossLimit(Math.max(0, Number(e.target.value)))}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
+                placeholder="3"
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-neutral-400">クールダウン時間（分）</label>
+              <p className="text-xs text-neutral-500 mb-1">連敗リミットに達した際に、トレードをロックする時間。</p>
+              <input
+                type="number"
+                value={cooldownMinutes}
+                onChange={(e) => setCooldownMinutes(Math.max(0, Number(e.target.value)))}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
+                placeholder="30"
+                min="0"
+              />
+            </div>
           </div>
         </Card>
 
