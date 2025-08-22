@@ -113,6 +113,38 @@ export default function FXAnalyzer() {
     return analysisResults;
   }, [savedClosed]);
 
+  const longTermProjection = useMemo(() => {
+    if (savedClosed.length === 0) {
+      return null;
+    }
+
+    const tradeDays = new Set<string>();
+    savedClosed.forEach(trade => {
+      if (trade.exitAt) {
+        tradeDays.add(toLocalDateKey(trade.exitAt));
+      }
+    });
+
+    const numberOfDays = tradeDays.size;
+    if (numberOfDays === 0) {
+      return null;
+    }
+
+    const avgDailyPL = summary.totalQtyPL / numberOfDays;
+    const currentBalance = startBalance + summary.totalQtyPL;
+
+    const weeklyGain = avgDailyPL * 7;
+    const monthlyGain = avgDailyPL * 30;
+    const yearlyGain = avgDailyPL * 365;
+
+    return {
+      avgDailyPL,
+      weekly: { balance: currentBalance + weeklyGain, gain: weeklyGain },
+      monthly: { balance: currentBalance + monthlyGain, gain: monthlyGain },
+      yearly: { balance: currentBalance + yearlyGain, gain: yearlyGain },
+    };
+  }, [savedClosed, startBalance, summary.totalQtyPL]);
+
   function handleSave() {
     const parsed = parseFX(raw);
     const { merged, added } = mergeUniqueWithCount(savedClosed, parsed.closedTrades);
@@ -436,6 +468,36 @@ export default function FXAnalyzer() {
           </div>
         </Card>
 
+        <Card>
+          <h2 className="text-base font-semibold tracking-tight mb-3">長期シミュレーション (未来予測)</h2>
+          {longTermProjection ? (
+            <div>
+              <div className="mb-4 text-sm text-neutral-400">
+                計算の前提：1日あたりの平均利益 <span className={`font-semibold tabular-nums ${longTermProjection.avgDailyPL >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtSignedInt(longTermProjection.avgDailyPL)}</span>
+              </div>
+              <div className="space-y-3">
+                <ProjectionStat
+                  label="1週間後"
+                  balance={longTermProjection.weekly.balance}
+                  gain={longTermProjection.weekly.gain}
+                />
+                <ProjectionStat
+                  label="1ヶ月後"
+                  balance={longTermProjection.monthly.balance}
+                  gain={longTermProjection.monthly.gain}
+                />
+                <ProjectionStat
+                  label="1年後"
+                  balance={longTermProjection.yearly.balance}
+                  gain={longTermProjection.yearly.gain}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-neutral-400">トレード履歴が1日分以上になると表示されます。</div>
+          )}
+        </Card>
+
         {/* 決済済み一覧（保存済） */}
         <Card className="lg:col-span-2">
           <div className="flex justify-between items-center mb-3">
@@ -691,6 +753,20 @@ export default function FXAnalyzer() {
           </div>
         )}
       </motion.div>
+    </div>
+  );
+}
+
+function ProjectionStat({ label, balance, gain }: { label: string; balance: number; gain: number }) {
+  return (
+    <div>
+      <div className="text-sm text-neutral-300">{label}</div>
+      <div className="flex items-end gap-2 mt-1">
+        <span className="text-xl font-bold tabular-nums">{formatInt(balance)}円</span>
+        <span className={`text-sm font-medium tabular-nums ${gain >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+          ({fmtSignedInt(gain)})
+        </span>
+      </div>
     </div>
   );
 }
