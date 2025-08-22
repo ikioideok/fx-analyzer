@@ -183,12 +183,13 @@ export default function FXAnalyzer() {
       setIsAiMessageLoading(true);
       setAiMessageError(null);
       try {
+        const recentTrades = savedClosed.slice(-3);
         const response = await fetch("/api/generate-ai-message", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(summary),
+          body: JSON.stringify({ summary, recentTrades }),
         });
 
         if (!response.ok) {
