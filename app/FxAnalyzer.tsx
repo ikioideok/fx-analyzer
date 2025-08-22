@@ -46,6 +46,7 @@ export default function FXAnalyzer() {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
   const [startBalance, setStartBalance] = useState(165541);
+  const [targetBalance, setTargetBalance] = useState(1000000);
 
   const summary = useMemo(() => summarize(savedClosed), [savedClosed]);
 
@@ -144,6 +145,23 @@ export default function FXAnalyzer() {
       yearly: { balance: currentBalance + yearlyGain, gain: yearlyGain },
     };
   }, [savedClosed, startBalance, summary.totalQtyPL]);
+
+  const goalProjection = useMemo(() => {
+    const currentBalance = startBalance + summary.totalQtyPL;
+
+    if (targetBalance <= currentBalance) {
+      return { status: 'achieved', days: 0 };
+    }
+
+    if (!longTermProjection || longTermProjection.avgDailyPL <= 0) {
+      return { status: 'unreachable', days: Infinity };
+    }
+
+    const profitNeeded = targetBalance - currentBalance;
+    const daysToGoal = profitNeeded / longTermProjection.avgDailyPL;
+
+    return { status: 'projected', days: Math.ceil(daysToGoal) };
+  }, [targetBalance, startBalance, summary.totalQtyPL, longTermProjection]);
 
   function handleSave() {
     const parsed = parseFX(raw);
@@ -496,6 +514,43 @@ export default function FXAnalyzer() {
           ) : (
             <div className="text-sm text-neutral-400">トレード履歴が1日分以上になると表示されます。</div>
           )}
+        </Card>
+
+        <Card>
+          <h2 className="text-base font-semibold tracking-tight mb-3">目標達成シミュレーター</h2>
+          <div>
+            <label className="text-xs text-neutral-400">目標金額 (円)</label>
+            <input
+              type="number"
+              value={targetBalance}
+              onChange={(e) => setTargetBalance(Number(e.target.value) || 0)}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
+              placeholder="1000000"
+              step="100000"
+            />
+          </div>
+          <div className="mt-4 pt-4 border-t border-neutral-800">
+            {(() => {
+              if (!goalProjection) return null;
+              switch (goalProjection.status) {
+                case 'achieved':
+                  return <div className="text-emerald-400 font-semibold text-center">✓ 目標達成済みです！</div>;
+                case 'unreachable':
+                  return <div className="text-rose-400 font-semibold text-center">× 現在のペースでは目標達成できません。</div>;
+                case 'projected':
+                  return (
+                    <div className="text-center">
+                      <p className="text-sm text-neutral-400">目標達成まで…</p>
+                      <p className="text-3xl font-bold mt-1">
+                        あと約 <span className="text-emerald-300 tabular-nums">{goalProjection.days}</span> 日
+                      </p>
+                    </div>
+                  );
+                default:
+                  return null;
+              }
+            })()}
+          </div>
         </Card>
 
         {/* 決済済み一覧（保存済） */}
