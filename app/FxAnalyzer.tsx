@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Save, Wand2, FileText, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, Trash2, Edit } from "lucide-react";
+import { Save, Wand2, FileText, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, Trash2, Edit, Tag } from "lucide-react";
 
 // 型はファイル後半で正式定義（ClosedTrade など）
 
@@ -84,6 +84,33 @@ export default function FXAnalyzer() {
     const totalProjectedPl = todayPl + projectedAdditionalPl;
 
     return totalProjectedPl;
+  }, [savedClosed]);
+
+  const tagAnalysis = useMemo(() => {
+    const allTags = new Set<string>();
+    savedClosed.forEach(trade => {
+      trade.tags?.forEach(tag => {
+        allTags.add(tag);
+      });
+    });
+
+    const uniqueTags = Array.from(allTags);
+    if (uniqueTags.length === 0) {
+      return [];
+    }
+
+    const analysisResults = uniqueTags.map(tag => {
+      const tradesForTag = savedClosed.filter(trade => trade.tags?.includes(tag));
+      const summary = summarize(tradesForTag);
+      return {
+        tagName: tag,
+        summary: summary,
+      };
+    });
+
+    analysisResults.sort((a, b) => b.summary.count - a.summary.count);
+
+    return analysisResults;
   }, [savedClosed]);
 
   function handleSave() {
@@ -203,6 +230,39 @@ export default function FXAnalyzer() {
   useEffect(() => {
     refreshSnapshots();
   }, []);
+
+  function handleEditTags() {
+    if (selectedTrades.size === 0) {
+      setFlash("タグを編集するトレードを選択してください");
+      return;
+    }
+
+    const firstSelectedTrade = savedClosed.find(t => selectedTrades.has(tradeKey(t)));
+    const existingTags = firstSelectedTrade?.tags?.join(", ") || "";
+
+    const input = prompt(
+      `${selectedTrades.size}件のトレードにタグを付けます。\nカンマ区切りで入力してください（例: ブレイクアウト, 押し目買い）。\n既存のタグは上書きされます。`,
+      existingTags
+    );
+
+    if (input === null) {
+      return;
+    }
+
+    const newTags = input.trim() === "" ? [] : input.split(',').map(tag => tag.trim()).filter(Boolean);
+
+    const newSavedClosed = savedClosed.map(trade => {
+      if (selectedTrades.has(tradeKey(trade))) {
+        return { ...trade, tags: newTags };
+      }
+      return trade;
+    });
+
+    setSavedClosed(newSavedClosed);
+    saveTradesToLocalStorage(newSavedClosed);
+    setFlash(`${selectedTrades.size}件のトレードのタグを更新しました`);
+    setSelectedTrades(new Set());
+  }
 
   function handleDelete() {
     const newSavedClosed = savedClosed.filter(trade => !selectedTrades.has(tradeKey(trade)));
@@ -390,6 +450,14 @@ export default function FXAnalyzer() {
                 トレードを保存
               </button>
               <button
+                onClick={handleEditTags}
+                disabled={selectedTrades.size === 0}
+                className="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 text-white text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Tag className="w-3.5 h-3.5 mr-1"/>
+                タグ編集 ({selectedTrades.size})
+              </button>
+              <button
                 onClick={handleEdit}
                 disabled={selectedTrades.size === 0}
                 className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -473,6 +541,24 @@ export default function FXAnalyzer() {
               { key: "entryAt", label: "建玉日時", render: (r: ClosedTrade) => (r.entryAt ? fmtDate(r.entryAt) : "") },
               { key: "exitAt", label: "決済日時", render: (r: ClosedTrade) => (r.exitAt ? fmtDate(r.exitAt) : "") },
               { key: "hold", label: "保有", render: (r: ClosedTrade) => r.hold ?? "" },
+              {
+                key: "tags",
+                label: "タグ",
+                render: (r: ClosedTrade) => {
+                  if (!r.tags || r.tags.length === 0) {
+                    return <span className="text-neutral-500">-</span>;
+                  }
+                  return (
+                    <div className="flex flex-wrap gap-1">
+                      {r.tags.map(tag => (
+                        <span key={tag} className="px-1.5 py-0.5 rounded text-xs bg-neutral-700 text-neutral-200">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                },
+              },
             ]}
             rows={savedClosed}
           />
@@ -551,6 +637,31 @@ export default function FXAnalyzer() {
                 );
               })()}
             </div>
+          )}
+        </Card>
+
+        {/* タグ別分析 */}
+        <Card className="lg:col-span-2">
+          <h2 className="text-base font-semibold tracking-tight mb-3">タグ別分析</h2>
+          {tagAnalysis.length === 0 ? (
+            <div className="text-sm text-neutral-400">タグ付けされたトレードがありません。</div>
+          ) : (
+            <DataTable
+              columns={[
+                { key: "tagName", label: "タグ名", render: (r) => <span className="font-semibold">{r.tagName}</span> },
+                { key: "count", label: "トレード数", render: (r) => r.summary.count },
+                { key: "winRate", label: "勝率", render: (r) => <span className={getWinRateColor(r.summary.winRate)}>{isFinite(r.summary.winRate) ? `${r.summary.winRate.toFixed(1)}%` : "-"}</span> },
+                { key: "totalQtyPL", label: "損益合計 (円)", render: (r) =>
+                    <span className={`font-semibold ${r.summary.totalQtyPL >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
+                        {fmtSignedInt(r.summary.totalQtyPL)}
+                    </span>
+                },
+                { key: "totalPips", label: "合計Pips", render: (r) => fmtSigned(r.summary.totalPips, 1) },
+                { key: "avgPips", label: "平均Pips", render: (r) => fmtSigned(r.summary.avgPips, 1) },
+                { key: "payoff", label: "ペイオフレシオ", render: (r) => isFinite(r.summary.payoff ?? NaN) ? (r.summary.payoff as number).toFixed(2) : "-" },
+              ]}
+              rows={tagAnalysis}
+            />
           )}
         </Card>
 
@@ -691,6 +802,7 @@ type ClosedTrade = {
   hold?: string; // 保有時間テキスト
   ticketOpen?: string;
   ticketClose?: string;
+  tags?: string[];
 };
 
 type OpenPosition = {
