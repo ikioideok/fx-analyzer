@@ -34,6 +34,7 @@ export default function FXAnalyzer() {
   const [savedErrors, setSavedErrors] = useState<string[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [selectedTrades, setSelectedTrades] = useState(new Set<string>());
+  const [activeTab, setActiveTab] = useState('main');
 
   // 保存履歴（localStorage）
   type Snapshot = {
@@ -471,465 +472,478 @@ export default function FXAnalyzer() {
         <p className="text-neutral-400 mt-1">テキストを貼り付け、「保存」を押すと新規/決済を突合して一覧とサマリーに反映します（USD/JPY想定・pips計算）。</p>
       </header>
 
-      <main className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
-        {/* 入力 */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold tracking-tight flex items-center gap-2"><FileText className="w-4 h-4 text-neutral-400"/>① ログ貼り付け</h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setRaw(ExampleText.trim())}
-                className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs flex items-center gap-1"
-                title="サンプルを読み込む"
-              >
-                <Wand2 className="w-4 h-4"/> サンプル
-              </button>
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={handleSave}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium disabled:bg-neutral-600 disabled:cursor-not-allowed"
-                title="解析して下の表に反映"
-                disabled={isCooldownActive}
-              >
-                <Save className="w-4 h-4 inline -mt-0.5 mr-1"/>保存
-              </motion.button>
-            </div>
+      <div className="px-6 pt-4 border-b border-neutral-800">
+          <div className="flex gap-2">
+              <TabButton name="main" activeTab={activeTab} onClick={setActiveTab}>基本</TabButton>
+              <TabButton name="analysis" activeTab={activeTab} onClick={setActiveTab}>詳細分析</TabButton>
           </div>
-          <textarea
-            className="w-full h-72 md:h-96 resize-vertical rounded-lg bg-neutral-950 border border-neutral-800 focus:border-neutral-600 outline-none p-3 font-mono text-sm"
-            value={raw}
-            onChange={(e) => setRaw(e.target.value)}
-            placeholder="ここに明細テキストを貼り付け（改行とタブはそのままでOK）"
-          />
-          <div className="mt-3 text-xs text-neutral-400">
-            認識ヒント：<span className="font-mono">USD/JPY 成行 新規/決済</span> の行からブロックを検出し、 <span className="font-mono">買/売・数量・価格[成行]・約定済・日時・損益</span> を抽出します。
-          </div>
-        </Card>
+      </div>
 
-        {/* サマリー（保存済） */}
-        <Card>
-          <h2 className="text-base font-semibold tracking-tight mb-3">② サマリー（保存済み）</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <Stat label="トレード数" value={summary.count.toString()} />
-            <Stat label="勝率" value={isFinite(summary.winRate) ? `${summary.winRate.toFixed(1)}%` : "-"} valueClassName={getWinRateColor(summary.winRate)} />
-            <Stat label="合計P/L (pips)" value={fmtSigned(summary.totalPips)} intent={summary.totalPips >= 0 ? "up" : "down"} />
-            <Stat label="平均P/L (pips)" value={isFinite(summary.avgPips) ? fmtSigned(summary.avgPips, 1) : "-"} intent={(summary.avgPips ?? 0) >= 0 ? "up" : "down"} />
-            <Stat label="平均保有時間" value={summary.avgHold || "-"} />
-            <Stat label="最大ドローダウン (pips)" value={fmtNum(summary.maxDD)} intent="down" />
-            <Stat label="損益合計（数量×pips×100）" value={fmtSignedInt(summary.totalQtyPL)} intent={(summary.totalQtyPL ?? 0) >= 0 ? "up" : "down"} />
-            <Stat label="期待値/回（数量×pips×100）" value={fmtSignedInt(summary.expectancyQty)} intent={(summary.expectancyQty ?? 0) >= 0 ? "up" : "down"} />
-            <Stat label="ペイオフレシオ" value={isFinite(summary.payoff ?? NaN) ? (summary.payoff as number).toFixed(2) : "-"} />
-          </div>
+      <main className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
+            {/* 入力 */}
+            <Card className="lg:col-span-1">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-semibold tracking-tight flex items-center gap-2"><FileText className="w-4 h-4 text-neutral-400"/>① ログ貼り付け</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setRaw(ExampleText.trim())}
+                    className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs flex items-center gap-1"
+                    title="サンプルを読み込む"
+                  >
+                    <Wand2 className="w-4 h-4"/> サンプル
+                  </button>
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleSave}
+                    className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium disabled:bg-neutral-600 disabled:cursor-not-allowed"
+                    title="解析して下の表に反映"
+                    disabled={isCooldownActive}
+                  >
+                    <Save className="w-4 h-4 inline -mt-0.5 mr-1"/>保存
+                  </motion.button>
+                </div>
+              </div>
+              <textarea
+                className="w-full h-72 md:h-96 resize-vertical rounded-lg bg-neutral-950 border border-neutral-800 focus:border-neutral-600 outline-none p-3 font-mono text-sm"
+                value={raw}
+                onChange={(e) => setRaw(e.target.value)}
+                placeholder="ここに明細テキストを貼り付け（改行とタブはそのままでOK）"
+              />
+              <div className="mt-3 text-xs text-neutral-400">
+                認識ヒント：<span className="font-mono">USD/JPY 成行 新規/決済</span> の行からブロックを検出し、 <span className="font-mono">買/売・数量・価格[成行]・約定済・日時・損益</span> を抽出します。
+              </div>
+            </Card>
 
-          {savedErrors.length > 0 && (
-            <div className="mt-4 text-amber-300 text-sm">
-              <p className="font-medium mb-1 flex items-center gap-2"><AlertTriangle className="w-4 h-4"/>警告（保存時のパース）</p>
-              <ul className="list-disc pl-5 space-y-1">
-                {savedErrors.map((e, i) => (
-                  <li key={i} className="whitespace-pre-wrap">{e}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+            {/* サマリー（保存済） */}
+            <Card className="lg:col-span-1">
+              <h2 className="text-base font-semibold tracking-tight mb-3">② サマリー（保存済み）</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <Stat label="トレード数" value={summary.count.toString()} />
+                <Stat label="勝率" value={isFinite(summary.winRate) ? `${summary.winRate.toFixed(1)}%` : "-"} valueClassName={getWinRateColor(summary.winRate)} />
+                <Stat label="合計P/L (pips)" value={fmtSigned(summary.totalPips)} intent={summary.totalPips >= 0 ? "up" : "down"} />
+                <Stat label="平均P/L (pips)" value={isFinite(summary.avgPips) ? fmtSigned(summary.avgPips, 1) : "-"} intent={(summary.avgPips ?? 0) >= 0 ? "up" : "down"} />
+                <Stat label="平均保有時間" value={summary.avgHold || "-"} />
+                <Stat label="最大ドローダウン (pips)" value={fmtNum(summary.maxDD)} intent="down" />
+                <Stat label="損益合計（数量×pips×100）" value={fmtSignedInt(summary.totalQtyPL)} intent={(summary.totalQtyPL ?? 0) >= 0 ? "up" : "down"} />
+                <Stat label="期待値/回（数量×pips×100）" value={fmtSignedInt(summary.expectancyQty)} intent={(summary.expectancyQty ?? 0) >= 0 ? "up" : "down"} />
+                <Stat label="ペイオフレシオ" value={isFinite(summary.payoff ?? NaN) ? (summary.payoff as number).toFixed(2) : "-"} />
+              </div>
 
-          <div className="mt-4 border-t border-neutral-800 pt-4">
-            <h3 className="text-sm font-semibold tracking-tight mb-2 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-neutral-400"/> 本日の着地予想
-            </h3>
-            <div className="text-2xl font-bold tabular-nums">
-              {projectedPl !== null ? (
-                <span className={projectedPl >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
-                  {fmtSignedInt(projectedPl)}
-                </span>
-              ) : (
-                <span className="text-sm text-neutral-500">本日2トレード以上で表示</span>
+              {savedErrors.length > 0 && (
+                <div className="mt-4 text-amber-300 text-sm">
+                  <p className="font-medium mb-1 flex items-center gap-2"><AlertTriangle className="w-4 h-4"/>警告（保存時のパース）</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {savedErrors.map((e, i) => (
+                      <li key={i} className="whitespace-pre-wrap">{e}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
-            </div>
-            <p className="text-xs text-neutral-500 mt-1">
-              現在のペースでトレードを続けた場合の損益予測です。
-            </p>
-          </div>
-        </Card>
 
-        {/* カレンダー */}
-        <Card>
-            <h2 className="text-base font-semibold tracking-tight mb-3 flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4 text-neutral-400" />
-                損益カレンダー
-            </h2>
-            <CalendarView dailyPL={dailyPL} />
-        </Card>
-
-        {/* 口座残高 */}
-        <Card>
-          <h2 className="text-base font-semibold tracking-tight mb-3">口座残高</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-neutral-400">開始残高 (円)</label>
-              <input
-                type="number"
-                value={startBalance}
-                onChange={(e) => setStartBalance(Number(e.target.value) || 0)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
-                placeholder="100000"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-neutral-400">損益合計 (円)</label>
-              <div className={`text-xl font-semibold mt-2 tabular-nums ${summary.totalQtyPL >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                {fmtSignedInt(summary.totalQtyPL)}
-              </div>
-            </div>
-            <div className="col-span-2">
-              <label className="text-xs text-neutral-400">現在残高 (円)</label>
-              <div className="text-2xl font-bold mt-1 tabular-nums">
-                {formatInt(startBalance + summary.totalQtyPL)}
-              </div>
-            </div>
-          </div>
-          {isCooldownActive && (
-            <div className="mt-4 pt-4 border-t border-rose-500/30">
-              <div className="text-center">
-                <p className="font-semibold text-rose-400">🚨 クールダウン中 🚨</p>
-                <p className="text-2xl font-bold my-2 tabular-nums">{remainingCooldownTime}</p>
-                <p className="text-xs text-neutral-400">感情的なトレードを避けるため、休憩しましょう。</p>
-              </div>
-            </div>
-          )}
-        </Card>
-
-        <Card>
-          <h2 className="text-base font-semibold tracking-tight mb-3">長期シミュレーション (未来予測)</h2>
-          {longTermProjection ? (
-            <div>
-              <div className="mb-4 text-sm text-neutral-400">
-                計算の前提：1日あたりの平均利益 <span className={`font-semibold tabular-nums ${longTermProjection.avgDailyPL >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtSignedInt(longTermProjection.avgDailyPL)}</span>
-              </div>
-              <div className="space-y-3">
-                <ProjectionStat
-                  label="1週間後"
-                  balance={longTermProjection.weekly.balance}
-                  gain={longTermProjection.weekly.gain}
-                />
-                <ProjectionStat
-                  label="1ヶ月後"
-                  balance={longTermProjection.monthly.balance}
-                  gain={longTermProjection.monthly.gain}
-                />
-                <ProjectionStat
-                  label="1年後"
-                  balance={longTermProjection.yearly.balance}
-                  gain={longTermProjection.yearly.gain}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-neutral-400">トレード履歴が1日分以上になると表示されます。</div>
-          )}
-        </Card>
-
-        <Card>
-          <h2 className="text-base font-semibold tracking-tight mb-3">目標達成シミュレーター</h2>
-          <div>
-            <label className="text-xs text-neutral-400">目標金額 (円)</label>
-            <input
-              type="number"
-              value={targetBalance}
-              onChange={(e) => setTargetBalance(Number(e.target.value) || 0)}
-              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
-              placeholder="1000000"
-              step="100000"
-            />
-          </div>
-          <div className="mt-4 pt-4 border-t border-neutral-800">
-            {(() => {
-              if (!goalProjection) return null;
-              switch (goalProjection.status) {
-                case 'achieved':
-                  return <div className="text-emerald-400 font-semibold text-center">✓ 目標達成済みです！</div>;
-                case 'unreachable':
-                  return <div className="text-rose-400 font-semibold text-center">× 現在のペースでは目標達成できません。</div>;
-                case 'projected':
-                  return (
-                    <div className="text-center">
-                      <p className="text-sm text-neutral-400">目標達成まで…</p>
-                      <p className="text-3xl font-bold mt-1">
-                        あと約 <span className="text-emerald-300 tabular-nums">{goalProjection.days}</span> 日
-                      </p>
-                    </div>
-                  );
-                default:
-                  return null;
-              }
-            })()}
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-base font-semibold tracking-tight mb-3">リスク管理ルール</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs text-neutral-400">連続敗北リミット（回）</label>
-              <p className="text-xs text-neutral-500 mb-1">この回数だけ連敗するとクールダウンが発動します。0で無効。</p>
-              <input
-                type="number"
-                value={consecutiveLossLimit}
-                onChange={(e) => setConsecutiveLossLimit(Math.max(0, Number(e.target.value)))}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
-                placeholder="3"
-                min="0"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-neutral-400">クールダウン時間（分）</label>
-              <p className="text-xs text-neutral-500 mb-1">連敗リミットに達した際に、トレードをロックする時間。</p>
-              <input
-                type="number"
-                value={cooldownMinutes}
-                onChange={(e) => setCooldownMinutes(Math.max(0, Number(e.target.value)))}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
-                placeholder="30"
-                min="0"
-              />
-            </div>
-          </div>
-        </Card>
-
-        {/* 決済済み一覧（保存済） */}
-        <Card className="lg:col-span-2">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-base font-semibold tracking-tight">③ 決済済みトレード（保存済み）</h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleSaveTrades}
-                className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs flex items-center gap-1"
-                title="表示中のトレードを日付ごとにローカル保存"
-              >
-                <Save className="w-3.5 h-3.5 mr-1"/>
-                トレードを保存
-              </button>
-              <button
-                onClick={handleEditTags}
-                disabled={selectedTrades.size === 0}
-                className="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 text-white text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Tag className="w-3.5 h-3.5 mr-1"/>
-                タグ編集 ({selectedTrades.size})
-              </button>
-              <button
-                onClick={handleEdit}
-                disabled={selectedTrades.size === 0}
-                className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Edit className="w-3.5 h-3.5 mr-1"/>
-                編集
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={selectedTrades.size === 0}
-                className="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-1"/>
-                削除 ({selectedTrades.size})
-              </button>
-            </div>
-          </div>
-          <DataTable
-            columns={[
-              {
-                key: "select",
-                label: (
-                  <input
-                    type="checkbox"
-                    checked={savedClosed.length > 0 && selectedTrades.size === savedClosed.length}
-                    onChange={handleSelectAll}
-                    className="form-checkbox h-4 w-4 bg-neutral-800 border-neutral-700 text-emerald-600 focus:ring-emerald-500 rounded"
-                  />
-                ),
-                render: (r: ClosedTrade) => {
-                  const key = tradeKey(r);
-                  return (
-                    <input
-                      type="checkbox"
-                      checked={selectedTrades.has(key)}
-                      onChange={() => handleSelectTrade(key)}
-                      className="form-checkbox h-4 w-4 bg-neutral-800 border-neutral-700 text-emerald-600 focus:ring-emerald-500 rounded"
-                    />
-                  );
-                },
-              },
-              { key: "symbol", label: "銘柄" },
-              {
-                key: "side",
-                label: "方向",
-                render: (r: ClosedTrade) => (
-                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${r.side === "SELL" ? "border-rose-500/40 text-rose-300" : "border-emerald-500/40 text-emerald-300"}`}>
-                    {r.side}
-                  </span>
-                ),
-              },
-              { key: "size", label: "数量", render: (r: ClosedTrade) => <span className="tabular-nums">{r.size.toFixed(1)}</span> },
-              { key: "entryPrice", label: "建値", render: (r: ClosedTrade) => <span className="tabular-nums">{r.entryPrice?.toFixed(3) ?? ""}</span> },
-              { key: "exitPrice", label: "決済", render: (r: ClosedTrade) => <span className="tabular-nums">{r.exitPrice?.toFixed(3) ?? ""}</span> },
-              {
-                key: "pips",
-                label: "P/L (pips)",
-                render: (r: ClosedTrade) => {
-                  const v = r.pips ?? 0;
-                  const signUp = v >= 0;
-                  return (
-                    <span className={`inline-flex items-center gap-1 tabular-nums ${signUp ? "text-emerald-300" : "text-rose-300"}`}>
-                      {signUp ? <TrendingUp className="w-3.5 h-3.5"/> : <TrendingDown className="w-3.5 h-3.5"/>}
-                      {Math.abs(v).toFixed(1)}
+              <div className="mt-4 border-t border-neutral-800 pt-4">
+                <h3 className="text-sm font-semibold tracking-tight mb-2 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-neutral-400"/> 本日の着地予想
+                </h3>
+                <div className="text-2xl font-bold tabular-nums">
+                  {projectedPl !== null ? (
+                    <span className={projectedPl >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+                      {fmtSignedInt(projectedPl)}
                     </span>
-                  );
-                },
-              },
-              {
-                key: "plText",
-                label: "損益（数量×pips×100）",
-                render: (r: ClosedTrade) => {
-                  const vExact = (r.pips ?? 0) * r.size * 100;
-                  const v = Math.round(vExact);
-                  const signUp = (v || 0) >= 0;
-                  return (
-                    <span className={`font-semibold tabular-nums ${signUp ? "text-emerald-200" : "text-rose-200"}`}>{isFinite(v as number) ? formatInt(v as number) : ""}</span>
-                  );
-                },
-              },
-              { key: "entryAt", label: "建玉日時", render: (r: ClosedTrade) => (r.entryAt ? fmtDate(r.entryAt) : "") },
-              { key: "exitAt", label: "決済日時", render: (r: ClosedTrade) => (r.exitAt ? fmtDate(r.exitAt) : "") },
-              { key: "hold", label: "保有", render: (r: ClosedTrade) => r.hold ?? "" },
-              {
-                key: "tags",
-                label: "タグ",
-                render: (r: ClosedTrade) => {
-                  if (!r.tags || r.tags.length === 0) {
-                    return <span className="text-neutral-500">-</span>;
-                  }
-                  return (
-                    <div className="flex flex-wrap gap-1">
-                      {r.tags.map(tag => (
-                        <span key={tag} className="px-1.5 py-0.5 rounded text-xs bg-neutral-700 text-neutral-200">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  );
-                },
-              },
-            ]}
-            rows={savedClosed}
-          />
-        </Card>
-
-        {/* 保存履歴（localStorage） */}
-        <Card className="lg:col-span-2">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-base font-semibold tracking-tight">④ 保存履歴</h2>
-            <button
-              onClick={handleResetHistory}
-              className="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-xs flex items-center gap-1"
-              title="すべての保存履歴を削除します"
-            >
-              <Trash2 className="w-3.5 h-3.5 mr-1"/>
-              履歴をリセット
-            </button>
-          </div>
-          {snapshots.length === 0 ? (
-            <div className="text-sm text-neutral-400">保存履歴がありません。「トレードを保存」で保存できます。</div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <label className="text-sm text-neutral-300">日付を選択:</label>
-                <select
-                  className="bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm"
-                  value={selectedSnapshotKey || ''}
-                  onChange={(e) => setSelectedSnapshotKey(e.target.value)}
-                >
-                  {snapshots.map(s => (
-                    <option key={s.key} value={s.key}>{s.dateKey}（{s.count}件）</option>
-                  ))}
-                </select>
-                {(() => {
-                  const s = snapshots.find(x => x.key === selectedSnapshotKey) || snapshots[0];
-                  if (!s) return null;
-                  return (
-                    <div className="text-xs text-neutral-400">保存時刻: {new Date(s.savedAt).toLocaleString()}</div>
-                  );
-                })()}
+                  ) : (
+                    <span className="text-sm text-neutral-500">本日2トレード以上で表示</span>
+                  )}
+                </div>
+                <p className="text-xs text-neutral-500 mt-1">
+                  現在のペースでトレードを続けた場合の損益予測です。
+                </p>
               </div>
+            </Card>
 
-              {(() => {
-                const s = snapshots.find(x => x.key === selectedSnapshotKey) || snapshots[0];
-                if (!s) return null;
-                return (
-                  <>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      <Stat label="トレード数" value={s.summary.count.toString()} />
-                      <Stat label="勝率" value={s.summary.winRate != null && isFinite(s.summary.winRate) ? `${s.summary.winRate.toFixed(1)}%` : '-'} />
-                      <Stat label="合計P/L (pips)" value={fmtSigned(s.summary.totalPips)} intent={s.summary.totalPips >= 0 ? 'up' : 'down'} />
-                      <Stat label="期待値/回（数量×pips×100）" value={fmtSignedInt(s.summary.expectancyQty)} intent={(s.summary.expectancyQty ?? 0) >= 0 ? 'up' : 'down'} />
-                      <Stat label="ペイオフレシオ" value={isFinite(s.summary.payoff ?? NaN) ? (s.summary.payoff as number).toFixed(2) : '-'} />
-                    </div>
+            {/* 決済済み一覧（保存済） */}
+            <Card className="lg:col-span-2">
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-base font-semibold tracking-tight">③ 決済済みトレード（保存済み）</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSaveTrades}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs flex items-center gap-1"
+                    title="表示中のトレードを日付ごとにローカル保存"
+                  >
+                    <Save className="w-3.5 h-3.5 mr-1"/>
+                    トレードを保存
+                  </button>
+                  <button
+                    onClick={handleEditTags}
+                    disabled={selectedTrades.size === 0}
+                    className="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 text-white text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Tag className="w-3.5 h-3.5 mr-1"/>
+                    タグ編集 ({selectedTrades.size})
+                  </button>
+                  <button
+                    onClick={handleEdit}
+                    disabled={selectedTrades.size === 0}
+                    className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Edit className="w-3.5 h-3.5 mr-1"/>
+                    編集
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={selectedTrades.size === 0}
+                    className="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1"/>
+                    削除 ({selectedTrades.size})
+                  </button>
+                </div>
+              </div>
+              <DataTable
+                columns={[
+                  {
+                    key: "select",
+                    label: (
+                      <input
+                        type="checkbox"
+                        checked={savedClosed.length > 0 && selectedTrades.size === savedClosed.length}
+                        onChange={handleSelectAll}
+                        className="form-checkbox h-4 w-4 bg-neutral-800 border-neutral-700 text-emerald-600 focus:ring-emerald-500 rounded"
+                      />
+                    ),
+                    render: (r: ClosedTrade) => {
+                      const key = tradeKey(r);
+                      return (
+                        <input
+                          type="checkbox"
+                          checked={selectedTrades.has(key)}
+                          onChange={() => handleSelectTrade(key)}
+                          className="form-checkbox h-4 w-4 bg-neutral-800 border-neutral-700 text-emerald-600 focus:ring-emerald-500 rounded"
+                        />
+                      );
+                    },
+                  },
+                  { key: "symbol", label: "銘柄" },
+                  {
+                    key: "side",
+                    label: "方向",
+                    render: (r: ClosedTrade) => (
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${r.side === "SELL" ? "border-rose-500/40 text-rose-300" : "border-emerald-500/40 text-emerald-300"}`}>
+                        {r.side}
+                      </span>
+                    ),
+                  },
+                  { key: "size", label: "数量", render: (r: ClosedTrade) => <span className="tabular-nums">{r.size.toFixed(1)}</span> },
+                  { key: "entryPrice", label: "建値", render: (r: ClosedTrade) => <span className="tabular-nums">{r.entryPrice?.toFixed(3) ?? ""}</span> },
+                  { key: "exitPrice", label: "決済", render: (r: ClosedTrade) => <span className="tabular-nums">{r.exitPrice?.toFixed(3) ?? ""}</span> },
+                  {
+                    key: "pips",
+                    label: "P/L (pips)",
+                    render: (r: ClosedTrade) => {
+                      const v = r.pips ?? 0;
+                      const signUp = v >= 0;
+                      return (
+                        <span className={`inline-flex items-center gap-1 tabular-nums ${signUp ? "text-emerald-300" : "text-rose-300"}`}>
+                          {signUp ? <TrendingUp className="w-3.5 h-3.5"/> : <TrendingDown className="w-3.5 h-3.5"/>}
+                          {Math.abs(v).toFixed(1)}
+                        </span>
+                      );
+                    },
+                  },
+                  {
+                    key: "plText",
+                    label: "損益（数量×pips×100）",
+                    render: (r: ClosedTrade) => {
+                      const vExact = (r.pips ?? 0) * r.size * 100;
+                      const v = Math.round(vExact);
+                      const signUp = (v || 0) >= 0;
+                      return (
+                        <span className={`font-semibold tabular-nums ${signUp ? "text-emerald-200" : "text-rose-200"}`}>{isFinite(v as number) ? formatInt(v as number) : ""}</span>
+                      );
+                    },
+                  },
+                  { key: "entryAt", label: "建玉日時", render: (r: ClosedTrade) => (r.entryAt ? fmtDate(r.entryAt) : "") },
+                  { key: "exitAt", label: "決済日時", render: (r: ClosedTrade) => (r.exitAt ? fmtDate(r.exitAt) : "") },
+                  { key: "hold", label: "保有", render: (r: ClosedTrade) => r.hold ?? "" },
+                  {
+                    key: "tags",
+                    label: "タグ",
+                    render: (r: ClosedTrade) => {
+                      if (!r.tags || r.tags.length === 0) {
+                        return <span className="text-neutral-500">-</span>;
+                      }
+                      return (
+                        <div className="flex flex-wrap gap-1">
+                          {r.tags.map(tag => (
+                            <span key={tag} className="px-1.5 py-0.5 rounded text-xs bg-neutral-700 text-neutral-200">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    },
+                  },
+                ]}
+                rows={savedClosed}
+              />
+            </Card>
+        </div>
 
-                    <div className="mt-3">
-                      <DataTable
-                        columns={[
-                          { key: 'symbol', label: '銘柄' },
-                          { key: 'side', label: '方向' },
-                          { key: 'size', label: '数量', render: (r: ClosedTrade) => <span className="tabular-nums">{(r.size ?? 0).toFixed(1)}</span> },
-                          { key: 'entryPrice', label: '建値', render: (r: ClosedTrade) => <span className="tabular-nums">{r.entryPrice != null ? r.entryPrice.toFixed(3) : ''}</span> },
-                          { key: 'exitPrice', label: '決済', render: (r: ClosedTrade) => <span className="tabular-nums">{r.exitPrice != null ? r.exitPrice.toFixed(3) : ''}</span> },
-                          { key: 'pips', label: 'P/L (pips)', render: (r: ClosedTrade) => {
-                            const v = r.pips ?? 0; const up = v >= 0; return (
-                              <span className={`inline-flex items-center gap-1 tabular-nums ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{Math.abs(v).toFixed(1)}</span>
-                            );
-                          }},
-                          { key: 'entryAt', label: '建玉日時', render: (r: ClosedTrade) => (r.entryAt ? fmtDate(r.entryAt as any) : '') },
-                          { key: 'exitAt', label: '決済日時', render: (r: ClosedTrade) => (r.exitAt ? fmtDate(r.exitAt as any) : '') },
-                        ]}
-                        rows={s.trades as any}
+        {activeTab === 'analysis' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto mt-6">
+                {/* カレンダー */}
+                <Card>
+                    <h2 className="text-base font-semibold tracking-tight mb-3 flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4 text-neutral-400" />
+                        損益カレンダー
+                    </h2>
+                    <CalendarView dailyPL={dailyPL} />
+                </Card>
+
+                {/* 口座残高 */}
+                <Card>
+                  <h2 className="text-base font-semibold tracking-tight mb-3">口座残高</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-neutral-400">開始残高 (円)</label>
+                      <input
+                        type="number"
+                        value={startBalance}
+                        onChange={(e) => setStartBalance(Number(e.target.value) || 0)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
+                        placeholder="100000"
                       />
                     </div>
-                  </>
-                );
-              })()}
+                    <div>
+                      <label className="text-xs text-neutral-400">損益合計 (円)</label>
+                      <div className={`text-xl font-semibold mt-2 tabular-nums ${summary.totalQtyPL >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        {fmtSignedInt(summary.totalQtyPL)}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-neutral-400">現在残高 (円)</label>
+                      <div className="text-2xl font-bold mt-1 tabular-nums">
+                        {formatInt(startBalance + summary.totalQtyPL)}
+                      </div>
+                    </div>
+                  </div>
+                  {isCooldownActive && (
+                    <div className="mt-4 pt-4 border-t border-rose-500/30">
+                      <div className="text-center">
+                        <p className="font-semibold text-rose-400">🚨 クールダウン中 🚨</p>
+                        <p className="text-2xl font-bold my-2 tabular-nums">{remainingCooldownTime}</p>
+                        <p className="text-xs text-neutral-400">感情的なトレードを避けるため、休憩しましょう。</p>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+
+                <Card>
+                  <h2 className="text-base font-semibold tracking-tight mb-3">長期シミュレーション (未来予測)</h2>
+                  {longTermProjection ? (
+                    <div>
+                      <div className="mb-4 text-sm text-neutral-400">
+                        計算の前提：1日あたりの平均利益 <span className={`font-semibold tabular-nums ${longTermProjection.avgDailyPL >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtSignedInt(longTermProjection.avgDailyPL)}</span>
+                      </div>
+                      <div className="space-y-3">
+                        <ProjectionStat
+                          label="1週間後"
+                          balance={longTermProjection.weekly.balance}
+                          gain={longTermProjection.weekly.gain}
+                        />
+                        <ProjectionStat
+                          label="1ヶ月後"
+                          balance={longTermProjection.monthly.balance}
+                          gain={longTermProjection.monthly.gain}
+                        />
+                        <ProjectionStat
+                          label="1年後"
+                          balance={longTermProjection.yearly.balance}
+                          gain={longTermProjection.yearly.gain}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-neutral-400">トレード履歴が1日分以上になると表示されます。</div>
+                  )}
+                </Card>
+
+                <Card>
+                  <h2 className="text-base font-semibold tracking-tight mb-3">目標達成シミュレーター</h2>
+                  <div>
+                    <label className="text-xs text-neutral-400">目標金額 (円)</label>
+                    <input
+                      type="number"
+                      value={targetBalance}
+                      onChange={(e) => setTargetBalance(Number(e.target.value) || 0)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
+                      placeholder="1000000"
+                      step="100000"
+                    />
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-neutral-800">
+                    {(() => {
+                      if (!goalProjection) return null;
+                      switch (goalProjection.status) {
+                        case 'achieved':
+                          return <div className="text-emerald-400 font-semibold text-center">✓ 目標達成済みです！</div>;
+                        case 'unreachable':
+                          return <div className="text-rose-400 font-semibold text-center">× 現在のペースでは目標達成できません。</div>;
+                        case 'projected':
+                          return (
+                            <div className="text-center">
+                              <p className="text-sm text-neutral-400">目標達成まで…</p>
+                              <p className="text-3xl font-bold mt-1">
+                                あと約 <span className="text-emerald-300 tabular-nums">{goalProjection.days}</span> 日
+                              </p>
+                            </div>
+                          );
+                        default:
+                          return null;
+                      }
+                    })()}
+                  </div>
+                </Card>
+
+                <Card>
+                  <h2 className="text-base font-semibold tracking-tight mb-3">リスク管理ルール</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs text-neutral-400">連続敗北リミット（回）</label>
+                      <p className="text-xs text-neutral-500 mb-1">この回数だけ連敗するとクールダウンが発動します。0で無効。</p>
+                      <input
+                        type="number"
+                        value={consecutiveLossLimit}
+                        onChange={(e) => setConsecutiveLossLimit(Math.max(0, Number(e.target.value)))}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
+                        placeholder="3"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-neutral-400">クールダウン時間（分）</label>
+                      <p className="text-xs text-neutral-500 mb-1">連敗リミットに達した際に、トレードをロックする時間。</p>
+                      <input
+                        type="number"
+                        value={cooldownMinutes}
+                        onChange={(e) => setCooldownMinutes(Math.max(0, Number(e.target.value)))}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
+                        placeholder="30"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                </Card>
+
+                {/* 保存履歴（localStorage） */}
+                <Card className="lg:col-span-2">
+                  <div className="flex justify-between items-center mb-3">
+                    <h2 className="text-base font-semibold tracking-tight">④ 保存履歴</h2>
+                    <button
+                      onClick={handleResetHistory}
+                      className="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-xs flex items-center gap-1"
+                      title="すべての保存履歴を削除します"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1"/>
+                      履歴をリセット
+                    </button>
+                  </div>
+                  {snapshots.length === 0 ? (
+                    <div className="text-sm text-neutral-400">保存履歴がありません。「トレードを保存」で保存できます。</div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <label className="text-sm text-neutral-300">日付を選択:</label>
+                        <select
+                          className="bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm"
+                          value={selectedSnapshotKey || ''}
+                          onChange={(e) => setSelectedSnapshotKey(e.target.value)}
+                        >
+                          {snapshots.map(s => (
+                            <option key={s.key} value={s.key}>{s.dateKey}（{s.count}件）</option>
+                          ))}
+                        </select>
+                        {(() => {
+                          const s = snapshots.find(x => x.key === selectedSnapshotKey) || snapshots[0];
+                          if (!s) return null;
+                          return (
+                            <div className="text-xs text-neutral-400">保存時刻: {new Date(s.savedAt).toLocaleString()}</div>
+                          );
+                        })()}
+                      </div>
+
+                      {(() => {
+                        const s = snapshots.find(x => x.key === selectedSnapshotKey) || snapshots[0];
+                        if (!s) return null;
+                        return (
+                          <>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                              <Stat label="トレード数" value={s.summary.count.toString()} />
+                              <Stat label="勝率" value={s.summary.winRate != null && isFinite(s.summary.winRate) ? `${s.summary.winRate.toFixed(1)}%` : '-'} />
+                              <Stat label="合計P/L (pips)" value={fmtSigned(s.summary.totalPips)} intent={s.summary.totalPips >= 0 ? 'up' : 'down'} />
+                              <Stat label="期待値/回（数量×pips×100）" value={fmtSignedInt(s.summary.expectancyQty)} intent={(s.summary.expectancyQty ?? 0) >= 0 ? 'up' : 'down'} />
+                              <Stat label="ペイオフレシオ" value={isFinite(s.summary.payoff ?? NaN) ? (s.summary.payoff as number).toFixed(2) : '-'} />
+                            </div>
+
+                            <div className="mt-3">
+                              <DataTable
+                                columns={[
+                                  { key: 'symbol', label: '銘柄' },
+                                  { key: 'side', label: '方向' },
+                                  { key: 'size', label: '数量', render: (r: ClosedTrade) => <span className="tabular-nums">{(r.size ?? 0).toFixed(1)}</span> },
+                                  { key: 'entryPrice', label: '建値', render: (r: ClosedTrade) => <span className="tabular-nums">{r.entryPrice != null ? r.entryPrice.toFixed(3) : ''}</span> },
+                                  { key: 'exitPrice', label: '決済', render: (r: ClosedTrade) => <span className="tabular-nums">{r.exitPrice != null ? r.exitPrice.toFixed(3) : ''}</span> },
+                                  { key: 'pips', label: 'P/L (pips)', render: (r: ClosedTrade) => {
+                                    const v = r.pips ?? 0; const up = v >= 0; return (
+                                      <span className={`inline-flex items-center gap-1 tabular-nums ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{Math.abs(v).toFixed(1)}</span>
+                                    );
+                                  }},
+                                  { key: 'entryAt', label: '建玉日時', render: (r: ClosedTrade) => (r.entryAt ? fmtDate(r.entryAt as any) : '') },
+                                  { key: 'exitAt', label: '決済日時', render: (r: ClosedTrade) => (r.exitAt ? fmtDate(r.exitAt as any) : '') },
+                                ]}
+                                rows={s.trades as any}
+                              />
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </Card>
+
+                {/* タグ別分析 */}
+                <Card className="lg:col-span-2">
+                  <h2 className="text-base font-semibold tracking-tight mb-3">タグ別分析</h2>
+                  {tagAnalysis.length === 0 ? (
+                    <div className="text-sm text-neutral-400">タグ付けされたトレードがありません。</div>
+                  ) : (
+                    <DataTable
+                      columns={[
+                        { key: "tagName", label: "タグ名", render: (r) => <span className="font-semibold">{r.tagName}</span> },
+                        { key: "count", label: "トレード数", render: (r) => r.summary.count },
+                        { key: "winRate", label: "勝率", render: (r) => <span className={getWinRateColor(r.summary.winRate)}>{isFinite(r.summary.winRate) ? `${r.summary.winRate.toFixed(1)}%` : "-"}</span> },
+                        { key: "totalQtyPL", label: "損益合計 (円)", render: (r) =>
+                            <span className={`font-semibold ${r.summary.totalQtyPL >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
+                                {fmtSignedInt(r.summary.totalQtyPL)}
+                            </span>
+                        },
+                        { key: "totalPips", label: "合計Pips", render: (r) => fmtSigned(r.summary.totalPips, 1) },
+                        { key: "avgPips", label: "平均Pips", render: (r) => fmtSigned(r.summary.avgPips, 1) },
+                        { key: "payoff", label: "ペイオフレシオ", render: (r) => isFinite(r.summary.payoff ?? NaN) ? (r.summary.payoff as number).toFixed(2) : "-" },
+                      ]}
+                      rows={tagAnalysis}
+                    />
+                  )}
+                </Card>
+
+                {/* テストセクション */}
+                <Card className="lg:col-span-2">
+                  <h2 className="text-base font-semibold tracking-tight mb-3">⑤ 内部テスト（β）</h2>
+                  <p className="text-neutral-400 text-sm mb-3">最低限の自己診断テストを実装。クリックで実行 → 結果が下に表示されます。</p>
+                  <TestSuite />
+                </Card>
             </div>
-          )}
-        </Card>
-
-        {/* タグ別分析 */}
-        <Card className="lg:col-span-2">
-          <h2 className="text-base font-semibold tracking-tight mb-3">タグ別分析</h2>
-          {tagAnalysis.length === 0 ? (
-            <div className="text-sm text-neutral-400">タグ付けされたトレードがありません。</div>
-          ) : (
-            <DataTable
-              columns={[
-                { key: "tagName", label: "タグ名", render: (r) => <span className="font-semibold">{r.tagName}</span> },
-                { key: "count", label: "トレード数", render: (r) => r.summary.count },
-                { key: "winRate", label: "勝率", render: (r) => <span className={getWinRateColor(r.summary.winRate)}>{isFinite(r.summary.winRate) ? `${r.summary.winRate.toFixed(1)}%` : "-"}</span> },
-                { key: "totalQtyPL", label: "損益合計 (円)", render: (r) =>
-                    <span className={`font-semibold ${r.summary.totalQtyPL >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
-                        {fmtSignedInt(r.summary.totalQtyPL)}
-                    </span>
-                },
-                { key: "totalPips", label: "合計Pips", render: (r) => fmtSigned(r.summary.totalPips, 1) },
-                { key: "avgPips", label: "平均Pips", render: (r) => fmtSigned(r.summary.avgPips, 1) },
-                { key: "payoff", label: "ペイオフレシオ", render: (r) => isFinite(r.summary.payoff ?? NaN) ? (r.summary.payoff as number).toFixed(2) : "-" },
-              ]}
-              rows={tagAnalysis}
-            />
-          )}
-        </Card>
-
-        {/* テストセクション */}
-        <Card className="lg:col-span-2">
-          <h2 className="text-base font-semibold tracking-tight mb-3">⑤ 内部テスト（β）</h2>
-          <p className="text-neutral-400 text-sm mb-3">最低限の自己診断テストを実装。クリックで実行 → 結果が下に表示されます。</p>
-          <TestSuite />
-        </Card>
+        )}
       </main>
 
       <footer className="px-6 pb-10 text-center text-xs text-neutral-500">
@@ -952,6 +966,23 @@ export default function FXAnalyzer() {
       </motion.div>
     </div>
   );
+}
+
+function TabButton({ name, activeTab, onClick, children }: { name: string, activeTab: string, onClick: (name: string) => void, children: React.ReactNode }) {
+    const isActive = name === activeTab;
+    return (
+        <button
+            onClick={() => onClick(name)}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors
+                ${isActive
+                    ? 'bg-neutral-900 text-white'
+                    : 'bg-neutral-950 text-neutral-400 hover:bg-neutral-800'
+                }
+            `}
+        >
+            {children}
+        </button>
+    );
 }
 
 function ProjectionStat({ label, balance, gain }: { label: string; balance: number; gain: number }) {
