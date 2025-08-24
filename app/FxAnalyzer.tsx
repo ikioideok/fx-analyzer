@@ -1,7 +1,8 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Save, Wand2, FileText, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, Trash2, Edit, Tag } from "lucide-react";
+import { Save, Wand2, FileText, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, Trash2, Edit, Tag, Calendar as CalendarIcon } from "lucide-react";
+import CalendarView from "./CalendarView";
 
 // 型はファイル後半で正式定義（ClosedTrade など）
 
@@ -209,6 +210,17 @@ export default function FXAnalyzer() {
 
     return { status: 'projected', days: Math.ceil(daysToGoal) };
   }, [targetBalance, startBalance, summary.totalQtyPL, longTermProjection]);
+
+  const dailyPL = useMemo(() => {
+    return savedClosed.reduce((acc, trade) => {
+      if (trade.exitAt && trade.pips != null) {
+        const dateKey = toLocalDateKey(trade.exitAt);
+        const pl = trade.pips * trade.size * 100;
+        acc[dateKey] = (acc[dateKey] || 0) + pl;
+      }
+      return acc;
+    }, {} as { [key: string]: number });
+  }, [savedClosed]);
 
   function handleSave() {
     const parsed = parseFX(raw);
@@ -537,6 +549,15 @@ export default function FXAnalyzer() {
               現在のペースでトレードを続けた場合の損益予測です。
             </p>
           </div>
+        </Card>
+
+        {/* カレンダー */}
+        <Card>
+            <h2 className="text-base font-semibold tracking-tight mb-3 flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4 text-neutral-400" />
+                損益カレンダー
+            </h2>
+            <CalendarView dailyPL={dailyPL} />
         </Card>
 
         {/* 口座残高 */}

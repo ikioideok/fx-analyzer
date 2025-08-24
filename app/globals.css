@@ -3,3 +3,44 @@
 /* 任意の初期化 */
 :root { color-scheme: light; }
 html, body { height: 100%; }
+
+/* react-calendarのダークテーマ用オーバーライド */
+.react-calendar-overrides {
+  @apply !border-none !bg-transparent;
+}
+
+.react-calendar-overrides .react-calendar__navigation button {
+  @apply !text-neutral-200 hover:!bg-neutral-800;
+}
+
+.react-calendar-overrides .react-calendar__navigation button:disabled {
+  @apply !text-neutral-600;
+}
+
+.react-calendar-overrides .react-calendar__month-view__weekdays__weekday {
+  @apply !text-neutral-400 !font-semibold;
+}
+
+.react-calendar-overrides .react-calendar__tile {
+  @apply !text-neutral-200 rounded-lg;
+}
+
+.react-calendar-overrides .react-calendar__tile:hover {
+  @apply !bg-neutral-800;
+}
+
+.react-calendar-overrides .react-calendar__tile--now {
+  @apply !bg-neutral-800/50 !text-emerald-300;
+}
+
+.react-calendar-overrides .react-calendar__tile--active {
+  @apply !bg-emerald-700 !text-white;
+}
+
+.react-calendar-overrides .react-calendar__tile--active:hover {
+  @apply !bg-emerald-600;
+}
+
+.react-calendar-overrides .react-calendar__month-view__days__day--neighboringMonth {
+  @apply !text-neutral-600;
+}
