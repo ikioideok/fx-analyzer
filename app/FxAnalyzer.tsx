@@ -283,7 +283,7 @@ export default function FXAnalyzer() {
   }
 
   const analysisViewerProps = {
-    activeAnalysis, dailyPL, summary, isCooldownActive, remainingCooldownTime, longTermProjection,
+    activeAnalysis, dailyPL, summary, startBalance, setStartBalance, isCooldownActive, remainingCooldownTime, longTermProjection,
     goalProjection, targetBalance, setTargetBalance, consecutiveLossLimit, setConsecutiveLossLimit,
     cooldownMinutes, setCooldownMinutes, snapshots, selectedSnapshotKey, setSelectedSnapshotKey,
     handleResetHistory, tagAnalysis, TestSuite,

@@ -12,6 +12,8 @@ type Props = {
   activeAnalysis: string | null;
   dailyPL: { [key: string]: number };
   summary: Summary;
+  startBalance: number;
+  setStartBalance: (value: number) => void;
   isCooldownActive: boolean;
   remainingCooldownTime: string;
   longTermProjection: LongTermProjection | null;
