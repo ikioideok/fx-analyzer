@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Save, Wand2, FileText, CheckCircle2, AlertTriangle, TrendingUp, Edit, Tag, Trash2 } from "lucide-react";
+import { Save, Wand2, FileText, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, Edit, Tag, Trash2 } from "lucide-react";
 import AnalysisMenu from "./AnalysisMenu";
 import AnalysisViewer from "./AnalysisViewer";
 import { ClosedTrade, Snapshot } from './types';
