@@ -4,6 +4,8 @@ import { TrendingUp, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Save
 import CalendarView from './CalendarView';
 import { ClosedTrade, Summary, LongTermProjection, GoalProjection, Snapshot, TagAnalysis } from './types';
 import { DataTable } from './DataTable';
+import { Card, Stat, ProjectionStat } from './shared/components';
+import { fmtSignedInt, formatInt, getWinRateColor, fmtSigned, fmtNum, fmtDate } from './utils';
 
 // Props definition
 type Props = {
@@ -27,127 +29,6 @@ type Props = {
   tagAnalysis: TagAnalysis[];
   TestSuite: React.ComponentType;
 };
-
-// Helper components and functions moved from FxAnalyzer
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-    return (
-      <div className={`relative rounded-xl border border-neutral-800 bg-neutral-900/40 p-4 ${className}`}>
-        {children}
-      </div>
-    );
-}
-
-function Stat({ label, value, intent, valueClassName }: { label: string; value: string; intent?: "up" | "down"; valueClassName?: string }) {
-    const Icon = intent === "down" ? TrendingDown : TrendingUp;
-    const intentColor = intent === "down" ? "text-rose-300" : intent === "up" ? "text-emerald-300" : "";
-    const finalClassName = valueClassName || intentColor;
-    return (
-      <div className="bg-neutral-950 border border-neutral-800 rounded-lg p-3">
-        <div className="text-xs text-neutral-400 flex items-center gap-1">
-          {intent && <Icon className={`w-3.5 h-3.5 ${intentColor}`} />}
-          {label}
-        </div>
-        <div className={`text-xl font-semibold mt-1 tabular-nums ${finalClassName}`}>{value}</div>
-      </div>
-    );
-}
-
-function ProjectionStat({ label, balance, gain }: { label: string; balance: number; gain: number }) {
-    return (
-      <div>
-        <div className="text-sm text-neutral-300">{label}</div>
-        <div className="flex items-end gap-2 mt-1">
-          <span className="text-xl font-bold tabular-nums">{formatInt(balance)}円</span>
-          <span className={`text-sm font-medium tabular-nums ${gain >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            ({fmtSignedInt(gain)})
-          </span>
-        </div>
-      </div>
-    );
-}
-
-function DataTable({
-    columns,
-    rows,
-  }: {
-    columns: { key: string; label: string | React.ReactNode; render?: (row: any) => React.ReactNode }[];
-    rows: Record<string, any>[];
-  }) {
-    return (
-      <div className="overflow-auto rounded-lg border border-neutral-800">
-        <table className="min-w-full text-sm">
-          <thead className="sticky top-0 z-10">
-            <tr className="text-left bg-neutral-950">
-              {columns.map((c) => (
-                <th key={c.key} className="px-3 py-2 font-medium text-neutral-300 border-b border-neutral-800 whitespace-nowrap">
-                  {c.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td className="px-3 py-6 text-neutral-400" colSpan={columns.length}>
-                  データなし
-                </td>
-              </tr>
-            ) : (
-              rows.map((r, i) => (
-                <tr key={i} className="border-b border-neutral-900 hover:bg-neutral-900/60">
-                  {columns.map((c) => (
-                    <td key={c.key} className="px-3 py-2 whitespace-nowrap align-middle">
-                      {c.render ? c.render(r) : r[c.key]}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    );
-}
-
-function getWinRateColor(winRate?: number): string {
-    if (winRate == null || !isFinite(winRate)) return "";
-    if (winRate >= 50) return "text-emerald-300";
-    if (winRate >= 40) return "text-yellow-300";
-    if (winRate >= 30) return "text-orange-400";
-    if (winRate >= 20) return "text-rose-400";
-    return "text-rose-600";
-}
-
-function fmtSignedInt(n?: number) {
-    if (n == null || !isFinite(n)) return "-";
-    const abs = Math.round(Math.abs(n));
-    try { return `${n >= 0 ? "+" : "-"}${abs.toLocaleString()}`;
-    } catch {
-      return `${n >= 0 ? "+" : "-"}${abs}`;
-    }
-}
-
-function formatInt(n: number) {
-    try { return Math.round(n).toLocaleString(); } catch { return Math.round(n).toString(); }
-}
-
-function fmtSigned(n?: number, digits = 0) {
-    if (n == null || !isFinite(n)) return "-";
-    const s = (Math.abs(n)).toFixed(digits);
-    return `${n >= 0 ? "+" : "-"}${s}`;
-}
-
-function fmtDate(d?: Date) {
-    if (!d) return "";
-    const y = d.getFullYear();
-    const mo = `${d.getMonth() + 1}`.padStart(2, "0");
-    const da = `${d.getDate()}`.padStart(2, "0");
-    const hh = `${d.getHours()}`.padStart(2, "0");
-    const mm = `${d.getMinutes()}`.padStart(2, "0");
-    const ss = `${d.getSeconds()}`.padStart(2, "0");
-    return `${y}/${mo}/${da} ${hh}:${mm}:${ss}`;
-}
-
 
 export default function AnalysisViewer({ activeAnalysis, ...props }: Props) {
   if (!activeAnalysis) {
