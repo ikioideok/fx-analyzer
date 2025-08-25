@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Save, Wand2, FileText, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, Edit, Tag, Trash2 } from "lucide-react";
 import AnalysisMenu from "./AnalysisMenu";
 import AnalysisViewer from "./AnalysisViewer";
-import { ClosedTrade, Snapshot } from './types';
+import { ClosedTrade, Snapshot, GoalProjection } from './types';
 import { DataTable } from "./DataTable";
 import { Card, Stat } from './shared/components';
 import {
@@ -121,7 +121,7 @@ export default function FXAnalyzer() {
     };
   }, [savedClosed, startBalance, summary.totalQtyPL]);
 
-  const goalProjection = useMemo(() => {
+  const goalProjection = useMemo((): GoalProjection => {
     const currentBalance = startBalance + summary.totalQtyPL;
     if (targetBalance <= currentBalance) return { status: 'achieved', days: 0 };
     if (!longTermProjection || longTermProjection.avgDailyPL <= 0) return { status: 'unreachable', days: Infinity };
