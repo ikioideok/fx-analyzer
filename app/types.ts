@@ -51,3 +51,27 @@ export type TagAnalysis = {
     tagName: string;
     summary: Summary;
 };
+
+export type RawBlock = {
+  header: string;
+  lines: string[];
+};
+
+export type Event = {
+  symbol: string;
+  action: '新規' | '決済';
+  side: '買' | '売';
+  size: number;
+  orderPrice?: number;
+  at?: Date;
+  ticket?: string;
+};
+
+export type OpenPosition = {
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  size: number;
+  entryPrice?: number;
+  entryAt?: Date;
+  ticketOpen?: string;
+};
