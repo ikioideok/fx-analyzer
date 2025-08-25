@@ -31,46 +31,6 @@ export default function FXAnalyzer() {
   const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
   const [startBalance, setStartBalance] = useState(165541);
   const [targetBalance, setTargetBalance] = useState(1000000);
-  const [cooldownMinutes, setCooldownMinutes] = useState(30);
-  const [isCooldownActive, setIsCooldownActive] = useState(false);
-  const [cooldownEndTime, setCooldownEndTime] = useState<number | null>(null);
-  const [remainingCooldownTime, setRemainingCooldownTime] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedEndTime = window.localStorage.getItem('cooldownEndTime');
-      if (savedEndTime) {
-        const endTime = parseInt(savedEndTime, 10);
-        if (endTime > Date.now()) {
-          setIsCooldownActive(true);
-          setCooldownEndTime(endTime);
-        } else {
-          window.localStorage.removeItem('cooldownEndTime');
-        }
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isCooldownActive && cooldownEndTime) {
-      const intervalId = setInterval(() => {
-        const remainingMs = Math.max(0, cooldownEndTime - Date.now());
-        if (remainingMs === 0) {
-          setIsCooldownActive(false);
-          setCooldownEndTime(null);
-          if (typeof window !== 'undefined') window.localStorage.removeItem('cooldownEndTime');
-          setFlash("クールダウンが終了しました。");
-          setRemainingCooldownTime("");
-        } else {
-          const totalSeconds = Math.floor(remainingMs / 1000);
-          const minutes = Math.floor(totalSeconds / 60);
-          const seconds = totalSeconds % 60;
-          setRemainingCooldownTime(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-        }
-      }, 1000);
-      return () => clearInterval(intervalId);
-    }
-  }, [isCooldownActive, cooldownEndTime]);
 
   const summary = useMemo(() => summarize(savedClosed), [savedClosed]);
 
@@ -251,15 +211,6 @@ export default function FXAnalyzer() {
     }
   }
 
-  function handleStartCooldown() {
-    if (isCooldownActive) return;
-    const endTime = Date.now() + cooldownMinutes * 60 * 1000;
-    setCooldownEndTime(endTime);
-    setIsCooldownActive(true);
-    if (typeof window !== 'undefined') window.localStorage.setItem('cooldownEndTime', endTime.toString());
-    setFlash(`🚨 ${cooldownMinutes}分間のクールダウンを開始します。`);
-  }
-
   function handleEdit() { alert('編集機能は未実装です。'); }
 
   function handleSelectTrade(key: string) {
@@ -273,10 +224,10 @@ export default function FXAnalyzer() {
   }
 
   const analysisViewerProps = {
-    activeAnalysis, dailyPL, summary, startBalance, setStartBalance, isCooldownActive, remainingCooldownTime, longTermProjection,
+    activeAnalysis, dailyPL, summary, startBalance, setStartBalance, longTermProjection,
     goalProjection, targetBalance, setTargetBalance,
-    cooldownMinutes, setCooldownMinutes, snapshots, selectedSnapshotKey, setSelectedSnapshotKey,
-    handleResetHistory, tagAnalysis, TestSuite, handleStartCooldown,
+    snapshots, selectedSnapshotKey, setSelectedSnapshotKey,
+    handleResetHistory, tagAnalysis, TestSuite,
   };
 
   return (
@@ -295,7 +246,7 @@ export default function FXAnalyzer() {
                   <h2 className="text-base font-semibold tracking-tight flex items-center gap-2"><FileText className="w-4 h-4 text-neutral-400"/>① ログ貼り付け</h2>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setRaw(ExampleText.trim())} className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs flex items-center gap-1" title="サンプルを読み込む"><Wand2 className="w-4 h-4"/> サンプル</button>
-                    <motion.button whileTap={{ scale: 0.98 }} onClick={handleSave} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium disabled:bg-neutral-600 disabled:cursor-not-allowed" title="解析して下の表に反映" disabled={isCooldownActive}><Save className="w-4 h-4 inline -mt-0.5 mr-1"/>保存</motion.button>
+                    <motion.button whileTap={{ scale: 0.98 }} onClick={handleSave} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium" title="解析して下の表に反映"><Save className="w-4 h-4 inline -mt-0.5 mr-1"/>保存</motion.button>
                   </div>
                 </div>
                 <textarea className="w-full h-72 md:h-96 resize-vertical rounded-lg bg-neutral-950 border border-neutral-800 focus:border-neutral-600 outline-none p-3 font-mono text-sm" value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="ここに明細テキストを貼り付け（改行とタブはそのままでOK）" />
