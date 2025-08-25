@@ -14,15 +14,10 @@ type Props = {
   summary: Summary;
   startBalance: number;
   setStartBalance: (value: number) => void;
-  isCooldownActive: boolean;
-  remainingCooldownTime: string;
   longTermProjection: LongTermProjection | null;
   goalProjection: GoalProjection | null;
   targetBalance: number;
   setTargetBalance: (value: number) => void;
-  cooldownMinutes: number;
-  setCooldownMinutes: (value: number) => void;
-  handleStartCooldown: () => void;
   snapshots: Snapshot[];
   selectedSnapshotKey: string | null;
   setSelectedSnapshotKey: (key: string | null) => void;
@@ -82,15 +77,6 @@ export default function AnalysisViewer({ activeAnalysis, ...props }: Props) {
                 </div>
               </div>
             </div>
-            {props.isCooldownActive && (
-              <div className="mt-4 pt-4 border-t border-rose-500/30">
-                <div className="text-center">
-                  <p className="font-semibold text-rose-400">🚨 クールダウン中 🚨</p>
-                  <p className="text-2xl font-bold my-2 tabular-nums">{props.remainingCooldownTime}</p>
-                  <p className="text-xs text-neutral-400">感情的なトレードを避けるため、休憩しましょう。</p>
-                </div>
-              </div>
-            )}
           </Card>
         );
       case 'long_term':
@@ -163,33 +149,6 @@ export default function AnalysisViewer({ activeAnalysis, ...props }: Props) {
               })()}
             </div>
           </Card>
-        );
-    case 'risk':
-        return (
-            <Card>
-                <h2 className="text-base font-semibold tracking-tight mb-3">リスク管理</h2>
-                <div className="space-y-4">
-                <div>
-                    <label className="text-xs text-neutral-400">クールダウン時間（分）</label>
-                    <p className="text-xs text-neutral-500 mb-1">手動でクールダウンを開始する際の時間を設定します。</p>
-                    <input
-                    type="number"
-                    value={props.cooldownMinutes}
-                    onChange={(e) => props.setCooldownMinutes(Math.max(0, Number(e.target.value)))}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
-                    placeholder="30"
-                    min="0"
-                    />
-                </div>
-                </div>
-                <button
-                    onClick={props.handleStartCooldown}
-                    disabled={props.isCooldownActive}
-                    className="mt-4 w-full px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold disabled:bg-neutral-600 disabled:cursor-not-allowed"
-                >
-                    クールダウン開始
-                </button>
-            </Card>
         );
     case 'history':
         return (
