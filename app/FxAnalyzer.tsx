@@ -31,7 +31,6 @@ export default function FXAnalyzer() {
   const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
   const [startBalance, setStartBalance] = useState(165541);
   const [targetBalance, setTargetBalance] = useState(1000000);
-  const [consecutiveLossLimit, setConsecutiveLossLimit] = useState(3);
   const [cooldownMinutes, setCooldownMinutes] = useState(30);
   const [isCooldownActive, setIsCooldownActive] = useState(false);
   const [cooldownEndTime, setCooldownEndTime] = useState<number | null>(null);
@@ -220,24 +219,6 @@ export default function FXAnalyzer() {
 
   useEffect(refreshSnapshots, []);
 
-  useEffect(() => {
-    if (consecutiveLossLimit <= 0 || isCooldownActive) return;
-    const sortedTrades = [...savedClosed].sort((a, b) => (b.exitAt?.getTime() ?? 0) - (a.exitAt?.getTime() ?? 0));
-    if (sortedTrades.length < consecutiveLossLimit) return;
-    let consecutiveLosses = 0;
-    for (const trade of sortedTrades) {
-      if ((trade.pips ?? 0) < 0) consecutiveLosses++; else break;
-      if (consecutiveLosses >= consecutiveLossLimit) {
-        const endTime = Date.now() + cooldownMinutes * 60 * 1000;
-        setCooldownEndTime(endTime);
-        setIsCooldownActive(true);
-        if (typeof window !== 'undefined') window.localStorage.setItem('cooldownEndTime', endTime.toString());
-        setFlash(`🚨 ${consecutiveLossLimit}連敗しました。${cooldownMinutes}分間のクールダウンを開始します。`);
-        break;
-      }
-    }
-  }, [savedClosed, consecutiveLossLimit, cooldownMinutes, isCooldownActive]);
-
   function handleEditTags() {
     if (selectedTrades.size === 0) return setFlash("タグを編集するトレードを選択してください");
     const first = savedClosed.find(t => selectedTrades.has(tradeKey(t)));
@@ -270,6 +251,15 @@ export default function FXAnalyzer() {
     }
   }
 
+  function handleStartCooldown() {
+    if (isCooldownActive) return;
+    const endTime = Date.now() + cooldownMinutes * 60 * 1000;
+    setCooldownEndTime(endTime);
+    setIsCooldownActive(true);
+    if (typeof window !== 'undefined') window.localStorage.setItem('cooldownEndTime', endTime.toString());
+    setFlash(`🚨 ${cooldownMinutes}分間のクールダウンを開始します。`);
+  }
+
   function handleEdit() { alert('編集機能は未実装です。'); }
 
   function handleSelectTrade(key: string) {
@@ -284,9 +274,9 @@ export default function FXAnalyzer() {
 
   const analysisViewerProps = {
     activeAnalysis, dailyPL, summary, startBalance, setStartBalance, isCooldownActive, remainingCooldownTime, longTermProjection,
-    goalProjection, targetBalance, setTargetBalance, consecutiveLossLimit, setConsecutiveLossLimit,
+    goalProjection, targetBalance, setTargetBalance,
     cooldownMinutes, setCooldownMinutes, snapshots, selectedSnapshotKey, setSelectedSnapshotKey,
-    handleResetHistory, tagAnalysis, TestSuite,
+    handleResetHistory, tagAnalysis, TestSuite, handleStartCooldown,
   };
 
   return (
@@ -297,8 +287,8 @@ export default function FXAnalyzer() {
       </header>
 
       <main className="p-6 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="flex flex-col gap-6">
+          <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <div className="flex items-center justify-between mb-3">
@@ -351,7 +341,7 @@ export default function FXAnalyzer() {
               <DataTable columns={[ { key: "select", label: <input type="checkbox" checked={savedClosed.length > 0 && selectedTrades.size === savedClosed.length} onChange={handleSelectAll} className="form-checkbox h-4 w-4 bg-neutral-800 border-neutral-700 text-emerald-600 focus:ring-emerald-500 rounded" />, render: (r: ClosedTrade) => <input type="checkbox" checked={selectedTrades.has(tradeKey(r))} onChange={() => handleSelectTrade(tradeKey(r))} className="form-checkbox h-4 w-4 bg-neutral-800 border-neutral-700 text-emerald-600 focus:ring-emerald-500 rounded" /> }, { key: "symbol", label: "銘柄" }, { key: "side", label: "方向", render: (r: ClosedTrade) => <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${r.side === "SELL" ? "border-rose-500/40 text-rose-300" : "border-emerald-500/40 text-emerald-300"}`}>{r.side}</span> }, { key: "size", label: "数量", render: (r: ClosedTrade) => <span className="tabular-nums">{r.size.toFixed(1)}</span> }, { key: "entryPrice", label: "建値", render: (r: ClosedTrade) => <span className="tabular-nums">{r.entryPrice?.toFixed(3) ?? ""}</span> }, { key: "exitPrice", label: "決済", render: (r: ClosedTrade) => <span className="tabular-nums">{r.exitPrice?.toFixed(3) ?? ""}</span> }, { key: "pips", label: "P/L (pips)", render: (r: ClosedTrade) => <span className={`inline-flex items-center gap-1 tabular-nums ${r.pips! >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{r.pips! >= 0 ? <TrendingUp className="w-3.5 h-3.5"/> : <TrendingDown className="w-3.5 h-3.5"/>}{Math.abs(r.pips!).toFixed(1)}</span> }, { key: "plText", label: "損益（円）", render: (r: ClosedTrade) => <span className={`font-semibold tabular-nums ${parseInt(r.plText!) >= 0 ? "text-emerald-200" : "text-rose-200"}`}>{formatInt(parseInt(r.plText!))}</span> }, { key: "entryAt", label: "建玉日時", render: (r: ClosedTrade) => (r.entryAt ? fmtDate(r.entryAt) : "") }, { key: "exitAt", label: "決済日時", render: (r: ClosedTrade) => (r.exitAt ? fmtDate(r.exitAt) : "") }, { key: "hold", label: "保有", render: (r: ClosedTrade) => r.hold ?? "" }, { key: "tags", label: "タグ", render: (r: ClosedTrade) => r.tags?.length ? <div className="flex flex-wrap gap-1">{r.tags.map(tag => <span key={tag} className="px-1.5 py-0.5 rounded text-xs bg-neutral-700 text-neutral-200">{tag}</span>)}</div> : <span className="text-neutral-500">-</span> }, ]} rows={savedClosed} />
             </Card>
           </div>
-          <div className="lg:col-span-1 space-y-6">
+          <div className="space-y-6">
             <AnalysisMenu activeAnalysis={activeAnalysis} setActiveAnalysis={setActiveAnalysis} />
             <AnalysisViewer {...analysisViewerProps} />
           </div>

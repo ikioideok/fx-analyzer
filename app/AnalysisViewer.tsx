@@ -20,10 +20,9 @@ type Props = {
   goalProjection: GoalProjection | null;
   targetBalance: number;
   setTargetBalance: (value: number) => void;
-  consecutiveLossLimit: number;
-  setConsecutiveLossLimit: (value: number) => void;
   cooldownMinutes: number;
   setCooldownMinutes: (value: number) => void;
+  handleStartCooldown: () => void;
   snapshots: Snapshot[];
   selectedSnapshotKey: string | null;
   setSelectedSnapshotKey: (key: string | null) => void;
@@ -168,23 +167,11 @@ export default function AnalysisViewer({ activeAnalysis, ...props }: Props) {
     case 'risk':
         return (
             <Card>
-                <h2 className="text-base font-semibold tracking-tight mb-3">リスク管理ルール</h2>
+                <h2 className="text-base font-semibold tracking-tight mb-3">リスク管理</h2>
                 <div className="space-y-4">
                 <div>
-                    <label className="text-xs text-neutral-400">連続敗北リミット（回）</label>
-                    <p className="text-xs text-neutral-500 mb-1">この回数だけ連敗するとクールダウンが発動します。0で無効。</p>
-                    <input
-                    type="number"
-                    value={props.consecutiveLossLimit}
-                    onChange={(e) => props.setConsecutiveLossLimit(Math.max(0, Number(e.target.value)))}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2 mt-1 tabular-nums"
-                    placeholder="3"
-                    min="0"
-                    />
-                </div>
-                <div>
                     <label className="text-xs text-neutral-400">クールダウン時間（分）</label>
-                    <p className="text-xs text-neutral-500 mb-1">連敗リミットに達した際に、トレードをロックする時間。</p>
+                    <p className="text-xs text-neutral-500 mb-1">手動でクールダウンを開始する際の時間を設定します。</p>
                     <input
                     type="number"
                     value={props.cooldownMinutes}
@@ -195,6 +182,13 @@ export default function AnalysisViewer({ activeAnalysis, ...props }: Props) {
                     />
                 </div>
                 </div>
+                <button
+                    onClick={props.handleStartCooldown}
+                    disabled={props.isCooldownActive}
+                    className="mt-4 w-full px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold disabled:bg-neutral-600 disabled:cursor-not-allowed"
+                >
+                    クールダウン開始
+                </button>
             </Card>
         );
     case 'history':
