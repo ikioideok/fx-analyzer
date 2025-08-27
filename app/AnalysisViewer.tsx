@@ -2,7 +2,7 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Save, Trash2 } from 'lucide-react';
 import CalendarView from './CalendarView';
-import { ClosedTrade, Summary, LongTermProjection, GoalProjection, Snapshot, TagAnalysis } from './types';
+import { ClosedTrade, Summary, LongTermProjection, GoalProjection, TagAnalysis } from './types';
 import { DataTable } from './DataTable';
 import { Card, Stat, ProjectionStat } from './shared/components';
 import { fmtSignedInt, formatInt, getWinRateColor, fmtSigned, fmtNum, fmtDate } from './utils';
@@ -18,9 +18,6 @@ type Props = {
   goalProjection: GoalProjection | null;
   targetBalance: number;
   setTargetBalance: (value: number) => void;
-  snapshots: Snapshot[];
-  selectedSnapshotKey: string | null;
-  setSelectedSnapshotKey: (key: string | null) => void;
   handleResetHistory: () => void;
   tagAnalysis: TagAnalysis[];
   TestSuite: React.ComponentType;
@@ -150,81 +147,26 @@ export default function AnalysisViewer({ activeAnalysis, ...props }: Props) {
             </div>
           </Card>
         );
-    case 'history':
+    case 'settings':
         return (
             <Card>
-                <div className="flex justify-between items-center mb-3">
-                    <h2 className="text-base font-semibold tracking-tight">保存履歴</h2>
-                    <button
-                        onClick={props.handleResetHistory}
-                        className="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-xs flex items-center gap-1"
-                        title="すべての保存履歴を削除します"
-                    >
-                        <Trash2 className="w-3.5 h-3.5 mr-1"/>
-                        履歴をリセット
-                    </button>
-                </div>
-                {props.snapshots.length === 0 ? (
-                <div className="text-sm text-neutral-400">保存履歴がありません。「トレードを保存」で保存できます。</div>
-                ) : (
-                <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <label className="text-sm text-neutral-300">日付を選択:</label>
-                    <select
-                        className="bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm"
-                        value={props.selectedSnapshotKey || ''}
-                        onChange={(e) => props.setSelectedSnapshotKey(e.target.value)}
-                    >
-                        {props.snapshots.map(s => (
-                        <option key={s.key} value={s.key}>{s.dateKey}（{s.count}件）</option>
-                        ))}
-                    </select>
-                    {(() => {
-                        const s = props.snapshots.find(x => x.key === props.selectedSnapshotKey) || props.snapshots[0];
-                        if (!s) return null;
-                        return (
-                        <div className="text-xs text-neutral-400">保存時刻: {new Date(s.savedAt).toLocaleString()}</div>
-                        );
-                    })()}
+                <h2 className="text-base font-semibold tracking-tight mb-3">設定</h2>
+                <div className="space-y-4">
+                    <div>
+                        <h3 className="text-sm font-medium text-neutral-300">データ管理</h3>
+                        <div className="mt-2">
+                             <button
+                                onClick={props.handleResetHistory}
+                                className="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-xs flex items-center gap-1"
+                                title="サーバーに保存されているすべての履歴を削除します"
+                            >
+                                <Trash2 className="w-3.5 h-3.5 mr-1"/>
+                                全履歴をリセット
+                            </button>
+                            <p className="text-xs text-neutral-500 mt-1">この操作は元に戻せません。すべてのデータがサーバーから削除されます。</p>
+                        </div>
                     </div>
-
-                    {(() => {
-                    const s = props.snapshots.find(x => x.key === props.selectedSnapshotKey) || props.snapshots[0];
-                    if (!s) return null;
-                    return (
-                        <>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                            <Stat label="トレード数" value={s.summary.count.toString()} />
-                            <Stat label="勝率" value={s.summary.winRate != null && isFinite(s.summary.winRate) ? `${s.summary.winRate.toFixed(1)}%` : '-'} />
-                            <Stat label="合計P/L (pips)" value={fmtSigned(s.summary.totalPips)} intent={s.summary.totalPips >= 0 ? 'up' : 'down'} />
-                            <Stat label="期待値/回（数量×pips×100）" value={fmtSignedInt(s.summary.expectancyQty)} intent={(s.summary.expectancyQty ?? 0) >= 0 ? 'up' : 'down'} />
-                            <Stat label="ペイオフレシオ" value={isFinite(s.summary.payoff ?? NaN) ? (s.summary.payoff as number).toFixed(2) : '-'} />
-                        </div>
-
-                        <div className="mt-3">
-                            <DataTable
-                            columns={[
-                                { key: 'symbol', label: '銘柄' },
-                                { key: 'side', label: '方向' },
-                                { key: 'size', label: '数量', render: (r: ClosedTrade) => <span className="tabular-nums">{(r.size ?? 0).toFixed(1)}</span> },
-                                { key: 'entryPrice', label: '建値', render: (r: ClosedTrade) => <span className="tabular-nums">{r.entryPrice != null ? r.entryPrice.toFixed(3) : ''}</span> },
-                                { key: 'exitPrice', label: '決済', render: (r: ClosedTrade) => <span className="tabular-nums">{r.exitPrice != null ? r.exitPrice.toFixed(3) : ''}</span> },
-                                { key: 'pips', label: 'P/L (pips)', render: (r: ClosedTrade) => {
-                                const v = r.pips ?? 0; const up = v >= 0; return (
-                                    <span className={`inline-flex items-center gap-1 tabular-nums ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{Math.abs(v).toFixed(1)}</span>
-                                );
-                                }},
-                                { key: 'entryAt', label: '建玉日時', render: (r: ClosedTrade) => (r.entryAt ? fmtDate(r.entryAt as any) : '') },
-                                { key: 'exitAt', label: '決済日時', render: (r: ClosedTrade) => (r.exitAt ? fmtDate(r.exitAt as any) : '') },
-                            ]}
-                            rows={s.trades as any}
-                            />
-                        </div>
-                        </>
-                    );
-                    })()}
                 </div>
-                )}
             </Card>
         );
     case 'tags':

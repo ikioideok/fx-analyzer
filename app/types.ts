@@ -38,15 +38,6 @@ export type GoalProjection = {
     days: number;
 };
 
-export type Snapshot = {
-    key: string;
-    dateKey: string;
-    savedAt: string;
-    count: number;
-    summary: Summary;
-    trades: ClosedTrade[];
-};
-
 export type TagAnalysis = {
     tagName: string;
     summary: Summary;

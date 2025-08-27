@@ -60,10 +60,6 @@ export function reviveClosedTradeDates(t: any): ClosedTrade {
     return r as ClosedTrade;
 }
 
-export function saveTradesToLocalStorage(trades: ClosedTrade[]) {
-    if (typeof window !== "undefined") try { window.localStorage.setItem("fx_analyzer_main_trades_v2", JSON.stringify(trades)); } catch (e) { console.error("Failed to save trades", e); }
-}
-
 export function summarize(rows: ClosedTrade[]) {
     if (rows.length === 0) return { count: 0, winRate: NaN, totalPips: 0, avgPips: NaN, avgHold: "", maxDD: 0, totalQtyPL: 0, expectancyQty: NaN, payoff: NaN };
     let totalPips = 0;

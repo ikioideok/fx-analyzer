@@ -4,33 +4,42 @@ import { motion } from "framer-motion";
 import { Save, Wand2, FileText, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, Edit, Tag, Trash2 } from "lucide-react";
 import AnalysisMenu from "./AnalysisMenu";
 import AnalysisViewer from "./AnalysisViewer";
-import { ClosedTrade, Snapshot, GoalProjection } from './types';
+import { ClosedTrade, GoalProjection } from './types';
 import { DataTable } from "./DataTable";
 import { Card, Stat } from './shared/components';
 import {
   summarize, isSameLocalDate, toLocalDateKey, parseFX, mergeUniqueWithCount,
-  saveTradesToLocalStorage, reviveClosedTradeDates, tradeKey, fmtSignedInt,
+  reviveClosedTradeDates, tradeKey, fmtSignedInt,
   formatInt, getWinRateColor, fmtSigned, fmtNum, fmtDate
 } from './utils';
 
 // Main component
 export default function FXAnalyzer() {
   const [raw, setRaw] = useState(ExampleText.trim());
-  const [savedClosed, setSavedClosed] = useState<ClosedTrade[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = window.localStorage.getItem("fx_analyzer_main_trades_v2");
-      return saved ? JSON.parse(saved).map(reviveClosedTradeDates) : [];
-    } catch (e) { return []; }
-  });
+  const [savedClosed, setSavedClosed] = useState<ClosedTrade[]>([]);
   const [savedErrors, setSavedErrors] = useState<string[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [selectedTrades, setSelectedTrades] = useState(new Set<string>());
   const [activeAnalysis, setActiveAnalysis] = useState<string | null>('calendar');
-  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
-  const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
   const [startBalance, setStartBalance] = useState(165541);
   const [targetBalance, setTargetBalance] = useState(1000000);
+
+  // Load initial data from the server
+  useEffect(() => {
+    async function loadTrades() {
+      try {
+        const response = await fetch('/api/trades');
+        if (!response.ok) throw new Error('Failed to fetch trades');
+        const trades = await response.json();
+        setSavedClosed(trades.map(reviveClosedTradeDates));
+        setFlash(`サーバーからトレード ${trades.length} 件を読み込みました`);
+      } catch (error) {
+        console.error(error);
+        setFlash("トレードの読み込みに失敗しました");
+      }
+    }
+    loadTrades();
+  }, []);
 
   const summary = useMemo(() => summarize(savedClosed), [savedClosed]);
 
@@ -100,47 +109,31 @@ export default function FXAnalyzer() {
     }, {} as { [key: string]: number });
   }, [savedClosed]);
 
-  function handleSave() {
-    const parsed = parseFX(raw);
-    const { merged, added } = mergeUniqueWithCount(savedClosed, parsed.closedTrades);
-    setSavedClosed(merged);
-    saveTradesToLocalStorage(merged);
-    setSavedErrors(prev => [...prev, ...parsed.errors]);
-    const msg = added ? `追加：トレード ${added} 件（累計 ${merged.length} 件）` : parsed.errors.length ? `保存（追加なし・警告 ${parsed.errors.length} 件）` : "追加なし（重複）";
-    setFlash(msg);
+  async function saveTrades(trades: ClosedTrade[]) {
+    try {
+      const response = await fetch('/api/trades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(trades),
+      });
+      if (!response.ok) throw new Error('Failed to save trades');
+      return true;
+    } catch (error) {
+      console.error(error);
+      setFlash("サーバーへの保存に失敗しました");
+      return false;
+    }
   }
 
-  function handleSaveTrades() {
-    if (savedClosed.length === 0) return setFlash("保存するトレードがありません");
-    const tradesByDate = savedClosed.reduce((acc, trade) => {
-      const d = trade.exitAt ?? trade.entryAt;
-      if (d) {
-        const dateKey = toLocalDateKey(d);
-        if (!acc[dateKey]) acc[dateKey] = [];
-        acc[dateKey].push(trade);
-      }
-      return acc;
-    }, {} as Record<string, ClosedTrade[]>);
-
-    let savedCount = 0;
-    let lastKey = '';
-    Object.keys(tradesByDate).forEach(dateKey => {
-      const trades = tradesByDate[dateKey];
-      const key = `fx_trades:${dateKey}`;
-      const payload = { date: dateKey, count: trades.length, trades: trades, summary: summarize(trades), savedAt: new Date().toISOString() };
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(key, JSON.stringify(payload));
-        savedCount += trades.length;
-        lastKey = key;
-      }
-    });
-
-    if (savedCount > 0) {
-      setFlash(`保存しました（${Object.keys(tradesByDate).length}日分、合計 ${savedCount}件）`);
-      refreshSnapshots();
-      if (lastKey) setSelectedSnapshotKey(lastKey);
-    } else {
-      setFlash("保存対象のトレードが見つかりませんでした");
+  async function handleSave() {
+    const parsed = parseFX(raw);
+    const { merged, added } = mergeUniqueWithCount(savedClosed, parsed.closedTrades);
+    const success = await saveTrades(merged);
+    if (success) {
+      setSavedClosed(merged);
+      setSavedErrors(prev => [...prev, ...parsed.errors]);
+      const msg = added ? `追加：トレード ${added} 件（累計 ${merged.length} 件）` : parsed.errors.length ? `保存（追加なし・警告 ${parsed.errors.length} 件）` : "追加なし（重複）";
+      setFlash(msg);
     }
   }
 
@@ -150,64 +143,40 @@ export default function FXAnalyzer() {
     return () => clearTimeout(timer);
   }, [flash]);
 
-  function refreshSnapshots() {
-    if (typeof window === "undefined") return;
-    const list: Snapshot[] = [];
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const k = window.localStorage.key(i);
-      if (k?.startsWith("fx_trades:")) {
-        try {
-          const rawData = window.localStorage.getItem(k);
-          if (rawData) {
-            const obj = JSON.parse(rawData);
-            list.push({
-              key: k,
-              dateKey: obj.date || k.split(":")[1],
-              savedAt: obj.savedAt || new Date().toISOString(),
-              count: obj.count ?? obj.trades?.length ?? 0,
-              summary: obj.summary ?? summarize([]),
-              trades: (obj.trades || []).map(reviveClosedTradeDates),
-            });
-          }
-        } catch {}
-      }
-    }
-    list.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
-    setSnapshots(list);
-    if (!selectedSnapshotKey && list.length > 0) setSelectedSnapshotKey(list[0].key);
-  }
-
-  useEffect(refreshSnapshots, []);
-
-  function handleEditTags() {
+  async function handleEditTags() {
     if (selectedTrades.size === 0) return setFlash("タグを編集するトレードを選択してください");
     const first = savedClosed.find(t => selectedTrades.has(tradeKey(t)));
     const input = prompt(`${selectedTrades.size}件のトレードにタグを付けます`, first?.tags?.join(", ") || "");
     if (input === null) return;
     const newTags = input.trim() ? input.split(',').map(tag => tag.trim()).filter(Boolean) : [];
     const newSavedClosed = savedClosed.map(t => selectedTrades.has(tradeKey(t)) ? { ...t, tags: newTags } : t);
-    setSavedClosed(newSavedClosed);
-    saveTradesToLocalStorage(newSavedClosed);
-    setFlash(`${selectedTrades.size}件のトレードのタグを更新しました`);
-    setSelectedTrades(new Set());
+    const success = await saveTrades(newSavedClosed);
+    if (success) {
+      setSavedClosed(newSavedClosed);
+      setFlash(`${selectedTrades.size}件のトレードのタグを更新しました`);
+      setSelectedTrades(new Set());
+    }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     const newSavedClosed = savedClosed.filter(t => !selectedTrades.has(tradeKey(t)));
-    setSavedClosed(newSavedClosed);
-    saveTradesToLocalStorage(newSavedClosed);
-    setFlash(`削除：トレード ${selectedTrades.size} 件`);
-    setSelectedTrades(new Set());
+    const success = await saveTrades(newSavedClosed);
+    if (success) {
+      setSavedClosed(newSavedClosed);
+      setFlash(`削除：トレード ${selectedTrades.size} 件`);
+      setSelectedTrades(new Set());
+    }
   }
 
   function handleResetHistory() {
-    if (typeof window === "undefined") return;
-    const keys = Array.from({ length: window.localStorage.length }, (_, i) => window.localStorage.key(i)).filter(k => k?.startsWith("fx_trades:"));
-    if (keys.length > 0 && confirm(`${keys.length}件の保存履歴を削除しますか？`)) {
-      keys.forEach(k => window.localStorage.removeItem(k!));
-      setFlash("保存履歴をリセットしました");
-      refreshSnapshots();
-      setSelectedSnapshotKey(null);
+    if (confirm(`保存されている全 ${savedClosed.length} 件のトレード履歴を削除しますか？これは元に戻せません。`)) {
+      // Also clear server data
+      saveTrades([]).then(success => {
+        if (success) {
+          setSavedClosed([]);
+          setFlash("全履歴をリセットしました");
+        }
+      });
     }
   }
 
@@ -226,8 +195,7 @@ export default function FXAnalyzer() {
   const analysisViewerProps = {
     activeAnalysis, dailyPL, summary, startBalance, setStartBalance, longTermProjection,
     goalProjection, targetBalance, setTargetBalance,
-    snapshots, selectedSnapshotKey, setSelectedSnapshotKey,
-    handleResetHistory, tagAnalysis, TestSuite,
+    tagAnalysis, TestSuite, handleResetHistory,
   };
 
   return (
@@ -281,9 +249,8 @@ export default function FXAnalyzer() {
 
             <Card>
               <div className="flex justify-between items-center mb-3">
-                <h2 className="text-base font-semibold tracking-tight">③ 決済済みトレード（保存済み）</h2>
+                <h2 className="text-base font-semibold tracking-tight">③ 決済済みトレード（サーバー保存）</h2>
                 <div className="flex items-center gap-2">
-                  <button onClick={handleSaveTrades} className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs flex items-center gap-1" title="表示中のトレードを日付ごとにローカル保存"><Save className="w-3.5 h-3.5 mr-1"/>トレードを保存</button>
                   <button onClick={handleEditTags} disabled={selectedTrades.size === 0} className="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 text-white text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"><Tag className="w-3.5 h-3.5 mr-1"/>タグ編集 ({selectedTrades.size})</button>
                   <button onClick={handleEdit} disabled={selectedTrades.size === 0} className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"><Edit className="w-3.5 h-3.5 mr-1"/>編集</button>
                   <button onClick={handleDelete} disabled={selectedTrades.size === 0} className="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-white text-xs flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"><Trash2 className="w-3.5 h-3.5 mr-1"/>削除 ({selectedTrades.size})</button>

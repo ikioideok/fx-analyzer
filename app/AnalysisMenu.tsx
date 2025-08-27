@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import { BarChart2, CalendarDays, Target, History, Tags, TestTube2, Banknote } from 'lucide-react';
+import { BarChart2, CalendarDays, Target, Tags, TestTube2, Banknote, Settings } from 'lucide-react';
 
 type Props = {
   activeAnalysis: string | null;
@@ -12,8 +12,8 @@ const analysisItems = [
   { id: 'balance', label: '口座残高', icon: Banknote },
   { id: 'long_term', label: '長期シミュレーション', icon: BarChart2 },
   { id: 'goal', label: '目標達成シミュレーター', icon: Target },
-  { id: 'history', label: '保存履歴', icon: History },
   { id: 'tags', label: 'タグ別分析', icon: Tags },
+  { id: 'settings', label: '設定', icon: Settings },
   { id: 'tests', label: '内部テスト', icon: TestTube2 },
 ];
 
